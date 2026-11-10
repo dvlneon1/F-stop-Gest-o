@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "title": "Lente CRM Frontend Analysis — Impeccable Gallery Contact Sheet Compliance",
+  "playbook": "complete",
+  "phase": "analyze",
+  "strategy": "research",
+  "why": "Comprehensive audit of current Next.js implementation against Impeccable Gallery Contact Sheet design brief (single-file HTML artifact, mobile-first, photographer's images as interface)",
+  "budget": {
+    "maxReportedTokens": 150000,
+    "maxWallSeconds": 1800
+  },
+  "workers": [
+    {
+      "id": "worker-1",
+      "provider": "claude",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "mode": "read-only",
+      "cwd": "C:\\documents\\project_f_v3",
+      "task": {
+        "goal": "Analyze Visual Design & Design System compliance against Impeccable Gallery Contact Sheet brief",
+        "definitionOfDone": "Report with specific findings: where current implementation matches/diverges from brief's palette, typography, materials, form, and finish requirements",
+        "ownedPaths": [
+          "src/app/globals.css",
+          "src/app/layout.tsx",
+          "src/app/page.tsx",
+          "src/components/ui/*.tsx"
+        ],
+        "why": "Visual design is the core differentiator — the brief demands 'images lead, UI follows' with zero chrome, hairlines only, pure white/charcoal palette, and specific font assignments",
+        "checks": [
+          "Palette matches brief: #ffffff / #0f0f0f ground, 60% gray metadata, red/green accent rules only",
+          "Typography: Newsreader (display), JetBrains Mono (data), DM Sans (UI) — correct assignments",
+          "Materials: Masonry grid (2-col mobile, 4-col desktop), aspect ratios preserved, hairline rules only",
+          "No shadows, no cards, no chrome, no colored badges — only images and hairlines",
+          "Full-bleed images, wall-label panel (right 40% on mobile), bottom tab bar (56px)"
+        ],
+        "forbiddenChanges": ["Do not modify any files — read-only analysis only"],
+        "handoff": "Structured findings with file:line references, severity (critical/major/minor), and specific brief clause violated"
+      }
+    },
+    {
+      "id": "worker-2",
+      "provider": "claude",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "mode": "read-only",
+      "cwd": "C:\\documents\\project_f_v3",
+      "task": {
+        "goal": "Analyze UX / Interaction Patterns & Mobile-First Usability against brief's thumb-first mandate",
+        "definitionOfDone": "Report on interaction model compliance: navigation, gestures, touch targets, panel behavior, tab bar, offline/empty states",
+        "ownedPaths": [
+          "src/app/page.tsx",
+          "src/components/ui/sheet.tsx",
+          "src/components/ui/dialog.tsx",
+          "src/components/ui/navigation-menu.tsx",
+          "src/components/ui/tabs.tsx"
+        ],
+        "why": "Brief demands thumb-first: every primary action one-handed, bottom nav, swipe gestures, large targets. Current uses bottom sheet panel instead of right-side wall-label",
+        "checks": [
+          "Bottom tab bar: 5 tabs (Today/Archive/Calendar/Insights + Settings), 56px height, FAB on mobile",
+          "Panel: current is bottom sheet (full-width slide-up), brief requires right 40% wall-label on mobile",
+          "Touch targets ≥ 48×48dp, one-handed reach zones respected",
+          "Swipe-to-dismiss on panel, pull-to-refresh on grid",
+          "Empty states clearly marked with CTA, today's shoot highlighted (amber border)",
+          "Offline banner, sync indicator, optimistic updates"
+        ],
+        "forbiddenChanges": ["Do not modify any files — read-only analysis only"],
+        "handoff": "Structured findings with file:line references, severity, and specific brief UX clause violated"
+      }
+    },
+    {
+      "id": "worker-3",
+      "provider": "claude",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "mode": "read-only",
+      "cwd": "C:\\documents\\project_f_v3",
+      "task": {
+        "goal": "Analyze Technical Architecture & Code Quality for production readiness",
+        "definitionOfDone": "Report on: component architecture, state management, performance patterns, TypeScript usage, bundle concerns, PWA readiness",
+        "ownedPaths": [
+          "src/app/page.tsx",
+          "src/lib/utils.ts",
+          "src/components/ui/*.tsx",
+          "package.json",
+          "tsconfig.json",
+          "next.config.ts"
+        ],
+        "why": "Single-file 1852-line component violates separation of concerns; localStorage hooks duplicated; no virtualization for grid; PWA config missing",
+        "checks": [
+          "Component decomposition: page.tsx should be split into feature components",
+          "State management: 15+ useState/useReducer in single component — needs context or store",
+          "Performance: no virtualization for masonry grid, no memoization, re-renders on every state change",
+          "TypeScript: strict mode, proper interfaces, no any types",
+          "PWA: next.config.ts missing PWA plugin, manifest, service worker",
+          "Bundle: lucide-react imports 100+ icons — tree shaking check needed",
+          "Accessibility hooks: useMediaQuery, useLocalStorage — proper cleanup?"
+        ],
+        "forbiddenChanges": ["Do not modify any files — read-only analysis only"],
+        "handoff": "Structured findings with file:line references, severity, and technical debt classification"
+      }
+    },
+    {
+      "id": "worker-4",
+      "provider": "claude",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "mode": "read-only",
+      "cwd": "C:\\documents\\project_f_v3",
+      "task": {
+        "goal": "Analyze Accessibility, i18n, and Edge Cases against WCAG 2.1 AA and brief requirements",
+        "definitionOfDone": "Report on: contrast, focus order, touch targets, text resize, RTL-ready, reduced motion, PT/EN parity, voice-over labels",
+        "ownedPaths": [
+          "src/app/globals.css",
+          "src/app/page.tsx",
+          "src/app/layout.tsx",
+          "src/components/ui/*.tsx"
+        ],
+        "why": "Brief mandates: WCAG 2.1 AA, dark mode native, reduced motion, PT-BR + EN, VoiceOver/TalkBack labels, high-contrast toggle for outdoor shoots",
+        "checks": [
+          "Contrast ratios: text on dark backgrounds, badge colors, focus outlines",
+          "Focus management: panel open/close, modal traps, tab order",
+          "Touch targets: all interactive ≥ 48×48dp (check badges, icons, tab bar items)",
+          "Text resize to 200%: fluid typography, no horizontal scroll",
+          "Reduced motion: @media (prefers-reduced-motion) respected in globals.css",
+          "i18n: all strings in i18n object, no hardcoded PT/EN, date-fns locales correct",
+          "ARIA: roles, labels, live regions for toasts, panel aria-modal",
+          "High-contrast mode toggle: missing per brief",
+          "RTL-ready structure: logical properties, no hardcoded left/right"
+        ],
+        "forbiddenChanges": ["Do not modify any files — read-only analysis only"],
+        "handoff": "Structured findings with file:line references, severity, and WCAG criterion reference"
+      }
+    }
+  ]
+}

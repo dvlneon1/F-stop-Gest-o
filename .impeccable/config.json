@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/app/page.tsx"
+        ],
+        "createdAt": "2026-11-09T16:42:31.185Z",
+        "reason": "Intentional status indicators: left border on ShootCard shows inquiry (red) and paid (green) states at a glance. Today shoot uses amber border. Functional, not decorative."
+      }
+    ]
+  }
+}

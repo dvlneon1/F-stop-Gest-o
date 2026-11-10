@@ -1,0 +1,257 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-dm-sans);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-heading: var(--font-newsreader);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* Lente Design System - Dark mode default */
+  --background: #0f0f0f;
+  --foreground: #ffffff;
+  --card: #141414;
+  --card-foreground: #ffffff;
+  --popover: #141414;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #0f0f0f;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ffffff;
+  --muted: #1a1a1a;
+  --muted-foreground: #888888;
+  --accent: #1a1a1a;
+  --accent-foreground: #ffffff;
+  --destructive: #ff453a;
+  --destructive-foreground: #ffffff;
+  --border: #333333;
+  --input: #1a1a1a;
+  --ring: #ffffff;
+  --radius: 0rem;
+
+  /* Lente Accent Colors */
+  --accent-urgent: #ff453a;
+  --accent-paid: #32d74b;
+  --accent-today: #ffcc00;
+  --accent-voice: #ff3b30;
+
+  /* Sidebar (for desktop navigation-menu) */
+  --sidebar: #0f0f0f;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #0f0f0f;
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #333333;
+  --sidebar-ring: #ffffff;
+
+  /* Chart colors - using photographer's images as primary, these are fallbacks */
+  --chart-1: #ffcc00;
+  --chart-2: #32d74b;
+  --chart-3: #ff453a;
+  --chart-4: #007aff;
+  --chart-5: #af52de;
+}
+
+.light {
+  --background: #ffffff;
+  --foreground: #0f0f0f;
+  --card: #fafafa;
+  --card-foreground: #0f0f0f;
+  --popover: #fafafa;
+  --popover-foreground: #0f0f0f;
+  --primary: #0f0f0f;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #0f0f0f;
+  --muted: #f5f5f5;
+  --muted-foreground: #666666;
+  --accent: #f5f5f5;
+  --accent-foreground: #0f0f0f;
+  --destructive: #ff453a;
+  --destructive-foreground: #ffffff;
+  --border: #e5e5e5;
+  --input: #f5f5f5;
+  --ring: #0f0f0f;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f0f0f;
+  --sidebar-primary: #0f0f0f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #0f0f0f;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #0f0f0f;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: var(--font-dm-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  html {
+    @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Font families */
+  .font-display {
+    font-family: var(--font-newsreader), Georgia, serif;
+  }
+  .font-mono {
+    font-family: var(--font-jetbrains-mono), SF Mono, Menlo, monospace;
+  }
+
+  /* Focus visible */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-foreground;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Lente-specific utilities */
+@layer utilities {
+  .hairline {
+    @apply border-border;
+  }
+  .hairline-light {
+    @apply border-gray-300 dark:border-gray-700;
+  }
+  .panel-bg {
+    background-color: var(--card);
+  }
+  .bg-elevated {
+    background-color: var(--card);
+  }
+  .text-muted {
+    color: var(--muted-foreground);
+  }
+  .text-subtle {
+    color: #888888;
+  }
+  .dark .text-subtle {
+    color: #666666;
+  }
+
+  /* Grid utilities for masonry */
+  .grid-masonry-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .grid-masonry-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .grid-masonry-6 {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  @media (min-width: 768px) {
+    .grid-masonry-2 {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+  }
+  @media (min-width: 1200px) {
+    .grid-masonry-2 {
+      grid-template-columns: repeat(6, 1fr);
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+  }
+
+  /* Tab bar height */
+  .tab-bar-h {
+    height: 56px;
+  }
+
+  /* Shoot card aspect ratio */
+  .shoot-card-aspect {
+    aspect-ratio: 3/4;
+  }
+
+  /* Panel max height */
+  .panel-max-h {
+    max-height: calc(100vh - 56px);
+  }
+
+  @media (min-width: 600px) {
+    .panel-max-h {
+      max-height: 100vh;
+    }
+  }
+}
