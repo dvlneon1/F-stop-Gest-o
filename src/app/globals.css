@@ -17,11 +17,6 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -38,13 +33,6 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 :root {
@@ -60,21 +48,22 @@
   --secondary: #1a1a1a;
   --secondary-foreground: #ffffff;
   --muted: #1a1a1a;
-  --muted-foreground: #888888;
+  --muted-foreground: #999999;
   --accent: #1a1a1a;
   --accent-foreground: #ffffff;
   --destructive: #ff453a;
   --destructive-foreground: #ffffff;
-  --border: #333333;
+  --border: #1a1a1a;
   --input: #1a1a1a;
   --ring: #ffffff;
-  --radius: 0rem;
+  --radius: 0.5rem;
 
-  /* Lente Accent Colors */
+  /* Lente Accent Colors - Only permitted accents */
   --accent-urgent: #ff453a;
   --accent-paid: #32d74b;
-  --accent-today: #ffcc00;
-  --accent-voice: #ff3b30;
+  --accent-shoot-portrait: #3b82f6;
+  --accent-shoot-commercial: #6366f1;
+  --accent-shoot-event: #a855f7;
 
   /* Sidebar (for desktop navigation-menu) */
   --sidebar: #0f0f0f;
@@ -83,15 +72,8 @@
   --sidebar-primary-foreground: #0f0f0f;
   --sidebar-accent: #1a1a1a;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #333333;
+  --sidebar-border: #1a1a1a;
   --sidebar-ring: #ffffff;
-
-  /* Chart colors - using photographer's images as primary, these are fallbacks */
-  --chart-1: #ffcc00;
-  --chart-2: #32d74b;
-  --chart-3: #ff453a;
-  --chart-4: #007aff;
-  --chart-5: #af52de;
 }
 
 .light {
@@ -111,7 +93,7 @@
   --accent-foreground: #0f0f0f;
   --destructive: #ff453a;
   --destructive-foreground: #ffffff;
-  --border: #e5e5e5;
+  --border: #f0f0f0;
   --input: #f5f5f5;
   --ring: #0f0f0f;
   --sidebar: #ffffff;
@@ -120,7 +102,7 @@
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f5f5f5;
   --sidebar-accent-foreground: #0f0f0f;
-  --sidebar-border: #e5e5e5;
+  --sidebar-border: #f0f0f0;
   --sidebar-ring: #0f0f0f;
 }
 
@@ -142,8 +124,54 @@
   .font-display {
     font-family: var(--font-newsreader), Georgia, serif;
   }
+  .font-ui {
+    font-family: var(--font-dm-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+  }
   .font-mono {
     font-family: var(--font-jetbrains-mono), SF Mono, Menlo, monospace;
+  }
+
+  /* Type scale — modern web fonts only, no generic system fallbacks as primary.
+     Fluid with clamp(), tracking floor -0.04em, obvious scale/weight steps. */
+  .text-display {
+    font-family: var(--font-dm-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--foreground);
+    font-size: clamp(2rem, 5vw + 0.5rem, 3.5rem);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+  }
+
+  .text-heading {
+    font-family: var(--font-dm-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--foreground);
+    font-size: clamp(1.25rem, 3vw + 0.5rem, 2rem);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.04em;
+  }
+
+  .text-body {
+    font-family: var(--font-dm-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--foreground);
+    font-size: clamp(0.95rem, 1.5vw + 0.5rem, 1.125rem);
+    line-height: 1.6;
+  }
+
+  .text-label {
+    font-family: var(--font-jetbrains-mono), SF Mono, Menlo, monospace;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .text-data {
+    font-family: var(--font-jetbrains-mono), SF Mono, Menlo, monospace;
+    color: var(--foreground);
+    font-size: 0.875rem;
+    font-weight: 400;
   }
 
   /* Focus visible */
@@ -161,7 +189,6 @@
   }
   ::-webkit-scrollbar-thumb {
     background: var(--border);
-    border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--muted-foreground);
@@ -172,7 +199,6 @@
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
     }
   }
 }
@@ -182,54 +208,72 @@
   .hairline {
     @apply border-border;
   }
-  .hairline-light {
-    @apply border-gray-300 dark:border-gray-700;
-  }
-  .panel-bg {
-    background-color: var(--card);
-  }
-  .bg-elevated {
-    background-color: var(--card);
-  }
-  .text-muted {
-    color: var(--muted-foreground);
-  }
-  .text-subtle {
-    color: #888888;
-  }
-  .dark .text-subtle {
-    color: #666666;
+
+  /* Glass effect - backdrop blur + translucent surface */
+  .glass {
+    @apply backdrop-blur-md bg-background/80 border border-border/50;
   }
 
-  /* Grid utilities for masonry */
+  .glass-card {
+    @apply backdrop-blur-md bg-card/90 border border-border/60 rounded-lg;
+  }
+
+  /* Responsive container - standardized margins, never stuck to screen edges */
+  .container-lente {
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container-lente {
+      padding: 0 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-lente {
+      padding: 0 2rem;
+      max-width: 1200px;
+    }
+  }
+
+  /* Page padding - responsive, content never touches screen edges */
+  .page-padding {
+    @apply p-4;
+  }
+
+  @media (min-width: 640px) {
+    .page-padding {
+      @apply px-6 py-4;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-padding {
+      @apply px-8 py-6;
+    }
+  }
+
+  /* Grid utilities for masonry - max 4 columns, 1px gap using border for separators */
   .grid-masonry-2 {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
-  .grid-masonry-4 {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-  }
-  .grid-masonry-6 {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 12px;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
 
-  @media (min-width: 768px) {
+  @media (min-width: 640px) {
     .grid-masonry-2 {
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 12px;
     }
   }
-  @media (min-width: 1200px) {
+
+  @media (min-width: 1024px) {
     .grid-masonry-2 {
-      grid-template-columns: repeat(6, 1fr);
-      max-width: 1400px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      max-width: 1200px;
       margin: 0 auto;
     }
   }
@@ -242,6 +286,11 @@
   /* Shoot card aspect ratio */
   .shoot-card-aspect {
     aspect-ratio: 3/4;
+    min-height: 140px;
+  }
+
+  .grid__item--tall {
+    min-height: 280px;
   }
 
   /* Panel max height */
