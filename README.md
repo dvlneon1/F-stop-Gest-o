@@ -1,4 +1,4 @@
-# Lente — CRM para Fotógrafos
+# F-Stop Gestão — CRM para Fotógrafos
 
 Sistema de gestão de shoots, clientes, finanças e faturamento voltado para fotógrafos autônomos e estúdios pequenos. Construído com Next.js, Firebase (Auth + Firestore) e Tailwind CSS.
 
@@ -59,7 +59,21 @@ O app estará disponível em `http://localhost:3000`.
 
 ---
 
-## 📱 Funcionalidades
+## 🌿 Branches no Git
+
+Este projeto possui 3 branches principais:
+
+| Branch | Finalidade |
+|--------|------------|
+| `dev` | Desenvolvimento e testes das novas funcionalidades |
+| `homologacao` | Homologação antes de liberar para produção |
+| `prod` | Versão de produção estabilizada |
+
+O commit atual `b40afd7` contém todas as alterações da sessão e está presente nas 3 branches.
+
+---
+
+## 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
 | Módulo | O que faz |
 |--------|-----------|
