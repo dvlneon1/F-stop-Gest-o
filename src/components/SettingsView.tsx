@@ -16,19 +16,15 @@ import { exportShootsToSheets, exportClientsToSheets, importShootsFromSheets, im
 interface SettingsViewProps {
   settings: { lang: string; theme: string; lastSync: string | null; sheetsApiKey: string; sheetsSpreadsheetId: string };
   setSettings: React.Dispatch<React.SetStateAction<{ lang: string; theme: string; lastSync: string | null; sheetsApiKey: string; sheetsSpreadsheetId: string }>>;
+  shoots: any[];
+  clients: any[];
   lang: string;
 }
 
-export function SettingsView({ settings, setSettings, lang }: SettingsViewProps) {
+export function SettingsView({ settings, setSettings, shoots, clients, lang }: SettingsViewProps) {
   const [clearAllOpen, setClearAllOpen] = useState(false);
   const handleClearAllSettings = () => {
     setClearAllOpen(false);
-    localStorage.removeItem("lente_shoots_v1");
-    localStorage.removeItem("lente_clients_v1");
-    localStorage.removeItem("lente_settings_v1");
-    localStorage.removeItem("lente_galleries_v1");
-    localStorage.removeItem("lente_invoices_v1");
-    localStorage.removeItem("lente_questionnaires_v1");
     window.location.reload();
   };
   return (
@@ -69,12 +65,9 @@ export function SettingsView({ settings, setSettings, lang }: SettingsViewProps)
             <div className="space-y-3">
               <Button variant="outline" onClick={() => {
                 const data = {
-                  shoots: JSON.parse(localStorage.getItem("lente_shoots_v1") || "[]"),
-                  clients: JSON.parse(localStorage.getItem("lente_clients_v1") || "[]"),
-                  settings: JSON.parse(localStorage.getItem("lente_settings_v1") || "{}"),
-                  galleries: JSON.parse(localStorage.getItem("lente_galleries_v1") || "[]"),
-                  invoices: JSON.parse(localStorage.getItem("lente_invoices_v1") || "[]"),
-                  questionnaires: JSON.parse(localStorage.getItem("lente_questionnaires_v1") || "[]"),
+                  shoots,
+                  clients,
+                  settings,
                 };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);

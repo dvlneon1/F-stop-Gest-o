@@ -70,6 +70,10 @@ import {
   saveHideFinancialValues, subscribeHideFinancialValues,
   UserProfileData, SettingsData,
 } from "@/lib/firestore";
+import {
+  enqueueOperation, getPendingCount, getQueue, removeOperation, clearQueue,
+  type SyncOperation,
+} from "@/lib/sync-queue";
 import { getStatusColor, generateId } from "@/lib/utils";
 import { t } from "@/lib/i18n";
 
@@ -114,6 +118,7 @@ function AppContent() {
   const [questionnaireModalOpen, setQuestionnaireModalOpen] = useState(false);
   const [galleryModalOpen, setGalleryModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"online" | "offline" | "syncing">("offline");
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: "default" | "success" | "error" }[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [todayStr, setTodayStr] = useState<string>("");
@@ -252,15 +257,69 @@ function AppContent() {
     };
   }, [authFirebaseUser, authLoading, shoots, clients]);
 
-  // Sync online/offline status
+  // Sync online/offline status + offline queue processing
+  const processSyncQueue = useCallback(async () => {
+    if (!authFirebaseUser) return;
+    const userId = authFirebaseUser.uid;
+    const queue = getQueue(userId);
+    if (queue.length === 0) return;
+
+    setSyncStatus("syncing");
+    for (const op of queue) {
+      try {
+        switch (op.collection) {
+          case "shoots":
+            if (op.type === "delete") {
+              await deleteShoot(userId, op.data.id);
+            } else {
+              await saveShoot(userId, { ...op.data, id: op.data.id });
+            }
+            break;
+          case "clients":
+            if (op.type === "delete") {
+              await deleteClient(userId, op.data.id);
+            } else {
+              await saveClient(userId, { ...op.data, id: op.data.id });
+            }
+            break;
+          case "expenses":
+            if (op.type === "delete") {
+              await deleteExpense(userId, op.data.id);
+            } else {
+              await saveExpense(userId, { ...op.data, id: op.data.id });
+            }
+            break;
+          case "settings":
+            await saveSettings(userId, op.data);
+            break;
+          case "profile":
+            await saveUserProfile(userId, op.data);
+            break;
+          case "hideFinancial":
+            await saveHideFinancialValues(userId, op.data);
+            break;
+        }
+        removeOperation(userId, op.id);
+      } catch (err) {
+        console.error("[sync-queue] Falha ao processar operação", op.id, err);
+        // Leave in queue for retry
+      }
+    }
+    setPendingSyncCount(getPendingCount(userId));
+    setSyncStatus("online");
+  }, [authFirebaseUser]);
+
   useEffect(() => {
-    const handleOnline = () => { setSyncStatus("online"); };
+    const handleOnline = () => {
+      setSyncStatus("online");
+      processSyncQueue();
+    };
     const handleOffline = () => setSyncStatus("offline");
     setSyncStatus(typeof navigator !== "undefined" && navigator.onLine ? "online" : "offline");
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     return () => { window.removeEventListener("online", handleOnline); window.removeEventListener("offline", handleOffline); };
-  }, []);
+  }, [processSyncQueue]);
 
   // Welcome tour on first login
   useEffect(() => {
@@ -271,52 +330,114 @@ function AppContent() {
 
   // ===== FIRESTORE WRAPPERS (maintain same interface as useLocalStorage) =====
 
+  const isOnline = typeof navigator !== "undefined" && navigator.onLine;
+
   const setShoots = useCallback((value: Shoot[] | ((prev: Shoot[]) => Shoot[])) => {
     const next = value instanceof Function ? value(shoots) : value;
     setShootsLocal(next);
     if (authFirebaseUser) {
-      next.forEach(s => saveShoot(authFirebaseUser.uid, { ...s, id: s.id }));
+      if (isOnline) {
+        next.forEach(s => saveShoot(authFirebaseUser.uid, { ...s, id: s.id }));
+      } else {
+        next.forEach(s => enqueueOperation(authFirebaseUser.uid, {
+          type: "update",
+          collection: "shoots",
+          data: { ...s, id: s.id },
+          userId: authFirebaseUser.uid,
+        }));
+        setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+      }
     }
-  }, [shoots, authFirebaseUser]);
+  }, [shoots, authFirebaseUser, isOnline]);
 
   const setClients = useCallback((value: Client[] | ((prev: Client[]) => Client[])) => {
     const next = value instanceof Function ? value(clients) : value;
     setClientsLocal(next);
     if (authFirebaseUser) {
-      next.forEach(c => saveClient(authFirebaseUser.uid, { ...c, id: c.id }));
+      if (isOnline) {
+        next.forEach(c => saveClient(authFirebaseUser.uid, { ...c, id: c.id }));
+      } else {
+        next.forEach(c => enqueueOperation(authFirebaseUser.uid, {
+          type: "update",
+          collection: "clients",
+          data: { ...c, id: c.id },
+          userId: authFirebaseUser.uid,
+        }));
+        setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+      }
     }
-  }, [clients, authFirebaseUser]);
+  }, [clients, authFirebaseUser, isOnline]);
 
   const setExpenses = useCallback((value: Expense[] | ((prev: Expense[]) => Expense[])) => {
     const next = value instanceof Function ? value(expenses) : value;
     setExpensesLocal(next);
     if (authFirebaseUser) {
-      next.forEach(e => saveExpense(authFirebaseUser.uid, { ...e, id: e.id }));
+      if (isOnline) {
+        next.forEach(e => saveExpense(authFirebaseUser.uid, { ...e, id: e.id }));
+      } else {
+        next.forEach(e => enqueueOperation(authFirebaseUser.uid, {
+          type: "update",
+          collection: "expenses",
+          data: { ...e, id: e.id },
+          userId: authFirebaseUser.uid,
+        }));
+        setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+      }
     }
-  }, [expenses, authFirebaseUser]);
+  }, [expenses, authFirebaseUser, isOnline]);
 
   const setSettings = useCallback((value: SettingsData | ((prev: SettingsData) => SettingsData)) => {
     const next = value instanceof Function ? value(settings) : value;
     setSettingsLocal(next);
     if (authFirebaseUser) {
-      saveSettings(authFirebaseUser.uid, next);
+      if (isOnline) {
+        saveSettings(authFirebaseUser.uid, next);
+      } else {
+        enqueueOperation(authFirebaseUser.uid, {
+          type: "update",
+          collection: "settings",
+          data: next,
+          userId: authFirebaseUser.uid,
+        });
+        setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+      }
     }
-  }, [settings, authFirebaseUser]);
+  }, [settings, authFirebaseUser, isOnline]);
 
   const setUserProfile = useCallback((value: UserProfileData | ((prev: UserProfileData) => UserProfileData)) => {
     const next = value instanceof Function ? value(userProfile) : value;
     setUserProfileLocal(next);
     if (authFirebaseUser) {
-      saveUserProfile(authFirebaseUser.uid, next);
+      if (isOnline) {
+        saveUserProfile(authFirebaseUser.uid, next);
+      } else {
+        enqueueOperation(authFirebaseUser.uid, {
+          type: "update",
+          collection: "profile",
+          data: next,
+          userId: authFirebaseUser.uid,
+        });
+        setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+      }
     }
-  }, [userProfile, authFirebaseUser]);
+  }, [userProfile, authFirebaseUser, isOnline]);
 
   const setHideFinancialValues = useCallback((value: boolean) => {
     setHideFinancialValuesLocal(value);
     if (authFirebaseUser) {
-      saveHideFinancialValues(authFirebaseUser.uid, value);
+      if (isOnline) {
+        saveHideFinancialValues(authFirebaseUser.uid, value);
+      } else {
+        enqueueOperation(authFirebaseUser.uid, {
+          type: "update",
+          collection: "hideFinancial",
+          data: value,
+          userId: authFirebaseUser.uid,
+        });
+        setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+      }
     }
-  }, [authFirebaseUser]);
+  }, [authFirebaseUser, isOnline]);
 
   // ===== HANDLERS =====
 
@@ -432,10 +553,34 @@ function AppContent() {
     if (!pendingDelete) return;
     if (pendingDelete.type === "shoot") {
       setShoots(prev => prev.filter(s => s.id !== pendingDelete.id));
-      if (authFirebaseUser) deleteShoot(authFirebaseUser.uid, pendingDelete.id);
+      if (authFirebaseUser) {
+        if (isOnline) {
+          deleteShoot(authFirebaseUser.uid, pendingDelete.id);
+        } else {
+          enqueueOperation(authFirebaseUser.uid, {
+            type: "delete",
+            collection: "shoots",
+            data: { id: pendingDelete.id },
+            userId: authFirebaseUser.uid,
+          });
+          setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+        }
+      }
     } else {
       setClients(prev => prev.filter(c => c.id !== pendingDelete.id));
-      if (authFirebaseUser) deleteClient(authFirebaseUser.uid, pendingDelete.id);
+      if (authFirebaseUser) {
+        if (isOnline) {
+          deleteClient(authFirebaseUser.uid, pendingDelete.id);
+        } else {
+          enqueueOperation(authFirebaseUser.uid, {
+            type: "delete",
+            collection: "clients",
+            data: { id: pendingDelete.id },
+            userId: authFirebaseUser.uid,
+          });
+          setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+        }
+      }
     }
     setDeleteConfirmOpen(false);
     setPendingDelete(null);
@@ -565,6 +710,14 @@ function AppContent() {
           {syncStatus === "offline" && (
             <div className="fixed top-4 left-4 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-popover/60 border border-border/60 backdrop-blur-md text-[0.75rem] text-muted-foreground shadow-sm">
               <WifiOff className="w-3 h-3 opacity-70" /><span>{tLang("offline.banner")}</span>
+              {pendingSyncCount > 0 && (
+                <span className="text-amber-500">({pendingSyncCount} pendente(s))</span>
+              )}
+            </div>
+          )}
+          {syncStatus === "syncing" && (
+            <div className="fixed top-4 left-4 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/30 backdrop-blur-md text-[0.75rem] text-amber-900 shadow-sm">
+              <RefreshCw className="w-3 h-3 animate-spin" /><span>{tLang("offline.syncing")}</span>
             </div>
           )}
 
@@ -698,7 +851,7 @@ function AppContent() {
             ) : currentTab === "insights" ? (
               <InsightsView shoots={shoots} clients={clients} lang={lang} hideFinancialValues={hideFinancialValues} />
             ) : currentTab === "settings" ? (
-              <SettingsView settings={settings} setSettings={setSettings} lang={lang} />
+              <SettingsView settings={settings} setSettings={setSettings} shoots={shoots} clients={clients} lang={lang} />
             ) : currentTab === "user" ? (
               <UserView
                 clients={clients}
