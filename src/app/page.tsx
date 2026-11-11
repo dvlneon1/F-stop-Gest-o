@@ -1081,7 +1081,7 @@ function AppContent() {
                 onEditProfile={() => setProfileEditOpen(true)}
                 profileEditOpen={profileEditOpen}
                 setProfileEditOpen={setProfileEditOpen}
-                onSaveProfile={(data) => setUserProfile(data)}
+                onSaveProfile={(data) => new Promise(resolve => setUserProfile(data).then(() => resolve(true)))}
               />
             ) : null}
           </main>

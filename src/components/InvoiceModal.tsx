@@ -68,11 +68,13 @@ export function InvoiceModal({ open, onClose, shoot, lang, setShoots, showToast,
   };
 
   const saveInvoice = async () => {
-    const ok = await setShoots(prev => prev.map(s => s.id === shoot.id ? { ...s, invoiceData: invoice } : s));
-    if (ok) {
+    const result = await setShoots(prev => prev.map(s => s.id === shoot.id ? { ...s, invoiceData: invoice } : s));
+    // setShoots always returns true on success, false on error
+    if (result === true) {
       showToast(t("invoice.saved", lang), "success");
       onClose();
     }
+    return result === true;
   };
 
   const markPaid = async () => {

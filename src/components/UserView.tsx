@@ -172,7 +172,10 @@ export function UserView({ clients, expenses, userProfile, newExpenseOpen, setNe
       <NewExpenseModal
         open={newExpenseOpen}
         onClose={() => setNewExpenseOpen(false)}
-        onSubmit={handleNewExpense}
+        onSubmit={(data) => {
+          handleNewExpense(data);
+          return Promise.resolve(true);
+        }}
         lang={lang}
       />
 
@@ -182,6 +185,7 @@ export function UserView({ clients, expenses, userProfile, newExpenseOpen, setNe
         onSubmit={async (data) => {
           const ok = await onSaveProfile(data);
           if (ok) setProfileEditOpen(false);
+          return ok;
         }}
         profile={userProfile}
         lang={lang}
