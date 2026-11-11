@@ -880,7 +880,11 @@ function AppContent() {
               <DropdownMenu>
                 <DropdownMenuTrigger>
                   <div className="flex items-center justify-center w-12 h-12 rounded-full bg-card/90 border border-border/60 backdrop-blur-md transition-all duration-300 hover:bg-card/100" aria-label="Menu do usuário" tabIndex={0}>
-                    <User className="w-7 h-7 text-foreground" />
+                    {userProfile.photoURL ? (
+                      <img src={userProfile.photoURL} alt="Profile" className="w-7 h-7 rounded-full object-cover" />
+                    ) : (
+                      <User className="w-7 h-7 text-foreground" />
+                    )}
                   </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
