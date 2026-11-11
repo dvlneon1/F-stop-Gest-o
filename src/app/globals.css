@@ -36,7 +36,7 @@
 }
 
 :root {
-  /* Lente Design System - Dark mode default */
+  /* F-Stop Gestão Design System - Dark mode default */
   --background: #0f0f0f;
   --foreground: #ffffff;
   --card: #141414;
@@ -58,7 +58,7 @@
   --ring: #ffffff;
   --radius: 0.5rem;
 
-  /* Lente Accent Colors - Only permitted accents */
+  /* F-Stop Gestão Accent Colors - Only permitted accents */
   --accent-urgent: #ff453a;
   --accent-paid: #32d74b;
   --accent-shoot-portrait: #3b82f6;
@@ -203,7 +203,7 @@
   }
 }
 
-/* Lente-specific utilities */
+/* F-Stop Gestão-specific utilities */
 @layer utilities {
   .hairline {
     @apply border-border;

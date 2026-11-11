@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Offline Sync Queue for Lente CRM
+ * Offline Sync Queue for F-Stop Gestão CRM
  *
  * Quando o usuário está off-line, operações de gravação (create/update/delete)
  * são enfileiradas no localStorage e processadas automaticamente quando a

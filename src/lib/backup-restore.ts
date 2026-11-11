@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Backup/Restore para Lente CRM
+ * Backup/Restore para F-Stop Gestão CRM
  *
  * Exporta todos os dados do usuário (shoots, clients, expenses, profile,
  * settings, hideFinancialValues) para um arquivo JSON e permite restaurar

@@ -217,14 +217,14 @@ function AppContent() {
       if (data) {
         setUserProfileLocal(data);
       } else {
-        // New user - start with EMPTY profile, let them fill it in
+        // New user - start with completely empty profile
         const defaultProfile: UserProfileData = {
           name: "",
-          email: authFirebaseUser.email || "",
+          email: "",
           phone: "",
           cpf: "",
           address: "",
-          photoURL: authFirebaseUser.photoURL || undefined,
+          photoURL: undefined,
         };
         setUserProfileLocal(defaultProfile);
         // DON'T auto-save to Firestore - wait for user to edit and save
@@ -234,11 +234,12 @@ function AppContent() {
     const unsubSettings = subscribeSettings(userId, (data) => {
       if (data) setSettingsLocal(data);
       else {
+        // New user - start with default settings locally, don't auto-save to Firestore
         const defaultSettings: SettingsData = {
           lang: "pt", theme: "system", lastSync: null, sheetsApiKey: "", sheetsSpreadsheetId: "",
         };
         setSettingsLocal(defaultSettings);
-        saveSettings(userId, defaultSettings);
+        // Don't auto-save - wait for user to change something and save manually
       }
     });
 
@@ -1273,13 +1274,13 @@ function AppContent() {
               <div className="text-body text-muted/80 space-y-3 max-h-[60vh] overflow-y-auto">
                 {legalInfo === "privacy" ? (
                   <>
-                    <p>{t("privacy.text", lang) || "Seus dados pessoais e de negócios são armazenados exclusivamente no Firebase, vinculados ao seu usuário autenticado. O Lente não compartilha suas informações com terceiros."}</p>
+                    <p>{t("privacy.text", lang) || "Seus dados pessoais e de negócios são armazenados exclusivamente no Firebase, vinculados ao seu usuário autenticado. O F-Stop Gestão não compartilha suas informações com terceiros."}</p>
                     <p>Você pode exportar ou excluir todos os seus dados a qualquer momento em Configurações.</p>
                   </>
                 ) : (
                   <>
-                    <p>{t("terms.text", lang) || "Ao utilizar o Lente, você concorda com estes termos de uso. O aplicativo é destinado ao gerenciamento de shoots e clientes de fotografia. Você é responsável pelos dados que insere."}</p>
-                    <p>O uso do serviço é por sua conta e risco. O Lente não se responsabiliza por perda de dados decorrente de falhas externas.</p>
+                    <p>{t("terms.text", lang) || "Ao utilizar o F-Stop Gestão, você concorda com estes termos de uso. O aplicativo é destinado ao gerenciamento de shoots e clientes de fotografia. Você é responsável pelos dados que insere."}</p>
+                    <p>O uso do serviço é por sua conta e risco. O F-Stop Gestão não se responsabiliza por perda de dados decorrente de falhas externas.</p>
                   </>
                 )}
               </div>

@@ -16,7 +16,7 @@ interface WelcomeTourStep {
 const STEPS: WelcomeTourStep[] = [
   {
     id: "welcome",
-    title: "Bem-vindo ao Lente",
+    title: "Bem-vindo ao F-Stop Gestão",
     description: "Seu CRM para fotógrafos. Vamos fazer um tour rápido pelas principais áreas do app.",
     icon: Sparkles,
   },

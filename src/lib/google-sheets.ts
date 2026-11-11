@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Google Sheets integration for Lente CRM
+ * Google Sheets integration for F-Stop Gestão CRM
  * Exporta e importa dados (shoots, clients) para/do Google Sheets via API v4.
  * Configuração necessária: Google Sheets API Key + Spreadsheet ID.
  */

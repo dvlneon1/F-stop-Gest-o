@@ -25,14 +25,14 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lente — CRM para Fotógrafos",
+  title: "F-Stop Gestão — CRM para Fotógrafos",
   description: "CRM minimalista para fotógrafos solo — sua obra é a interface",
   metadataBase: new URL("https://lente.app"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "Lente — CRM para Fotógrafos",
+    title: "F-Stop Gestão — CRM para Fotógrafos",
     description: "CRM minimalista para fotógrafos solo — sua obra é a interface",
     type: "website",
     locale: "pt_BR",

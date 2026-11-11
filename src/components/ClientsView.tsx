@@ -140,9 +140,9 @@ export function ClientsView({ clients, shoots, lang, hideFinancialValues, onClie
               <div className="flex items-center justify-center">
                 <DropdownMenu>
                   <DropdownMenuTrigger>
-                    <button className="client-card__actions w-12 h-12 flex items-center justify-center bg-transparent border border-border/60 text-muted hover:border-muted/80 hover:text-foreground transition-colors rounded-full" aria-label={t("clients.actions", lang)}>
+                    <div className="client-card__actions w-12 h-12 flex items-center justify-center bg-transparent border border-border/60 text-muted hover:border-muted/80 hover:text-foreground transition-colors rounded-full" aria-label={t("clients.actions", lang)} tabIndex={0}>
                       <MoreHorizontal className="w-5 h-5" />
-                    </button>
+                    </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEditClient(client); }} className="flex items-center gap-2"><Edit className="w-4 h-4" />{t("clients.edit", lang)}</DropdownMenuItem>
