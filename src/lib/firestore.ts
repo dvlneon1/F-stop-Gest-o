@@ -6,11 +6,8 @@ import {
   getDoc,
   collection,
   query,
-  where,
   onSnapshot,
-  updateDoc,
   deleteDoc,
-  addDoc,
   serverTimestamp,
   DocumentData,
   QueryDocumentSnapshot,
@@ -18,11 +15,6 @@ import {
 import { db } from "@/lib/firebase"
 import { generateId } from "@/lib/utils"
 import type { Shoot, Client, Expense } from "@/lib/constants"
-
-// ===== COLLECTION NAMES =====
-const SHOOTS_COLLECTION = "shoots"
-const CLIENTS_COLLECTION = "clients"
-const EXPENSES_COLLECTION = "expenses"
 
 // ===== HELPERS =====
 
@@ -33,23 +25,41 @@ function requireDb() {
   return db
 }
 
-function docPath(collectionName: string, userId: string, id?: string) {
-  if (id) {
-    return doc(requireDb(), collectionName, userId, id)
-  }
-  return doc(requireDb(), collectionName, userId)
-}
-
-function subCollectionPath(collectionName: string, userId: string) {
-  return collection(requireDb(), collectionName, userId)
-}
-
 // Converte snapshot do Firestore para array, adicionando o id do documento
 function snapToArray<T>(snap: QueryDocumentSnapshot<DocumentData>): T {
   return { id: snap.id, ...snap.data() } as T
 }
 
+// Caminhos de subcoleção válidos (3 segmentos: ímpar = coleção)
+// Ex: users/{uid}/shoots
+function shootsColPath(userId: string) {
+  return collection(requireDb(), "users", userId, "shoots")
+}
+
+function clientsColPath(userId: string) {
+  return collection(requireDb(), "users", userId, "clients")
+}
+
+function expensesColPath(userId: string) {
+  return collection(requireDb(), "users", userId, "expenses")
+}
+
+// Caminho de documento dentro da subcoleção (4 segmentos: par = documento)
+// Ex: users/{uid}/shoots/{id}
+function shootsDocPath(userId: string, id: string) {
+  return doc(requireDb(), "users", userId, "shoots", id)
+}
+
+function clientsDocPath(userId: string, id: string) {
+  return doc(requireDb(), "users", userId, "clients", id)
+}
+
+function expensesDocPath(userId: string, id: string) {
+  return doc(requireDb(), "users", userId, "expenses", id)
+}
+
 // ===== USER PROFILE (documento por usuário) =====
+// users/{uid} — 2 segmentos (par = documento) ✓
 
 export interface UserProfileData {
   name: string
@@ -91,6 +101,7 @@ export function subscribeUserProfile(
 }
 
 // ===== SETTINGS (documento por usuário) =====
+// settings/{uid} — 2 segmentos (par = documento) ✓
 
 export interface SettingsData {
   lang: string
@@ -130,17 +141,19 @@ export function subscribeSettings(
   })
 }
 
-// ===== SHOOTS (coleção por usuário) =====
+// ===== SHOOTS (subcoleção por usuário) =====
+// users/{uid}/shoots — 3 segmentos (ímpar = coleção) ✓
+// users/{uid}/shoots/{id} — 4 segmentos (par = documento) ✓
 
 export async function saveShoot(userId: string, shoot: Omit<Shoot, "id"> & { id?: string }) {
   const id = shoot.id || generateId()
-  const shootDoc = doc(requireDb(), SHOOTS_COLLECTION, userId, id)
+  const shootDoc = shootsDocPath(userId, id)
   await setDoc(shootDoc, { ...shoot, id, updatedAt: serverTimestamp() }, { merge: true })
   return id
 }
 
 export async function deleteShoot(userId: string, id: string) {
-  const shootDoc = doc(requireDb(), SHOOTS_COLLECTION, userId, id)
+  const shootDoc = shootsDocPath(userId, id)
   await deleteDoc(shootDoc)
 }
 
@@ -148,7 +161,7 @@ export function subscribeShoots(
   userId: string,
   callback: (shoots: Shoot[]) => void
 ) {
-  const shootsCol = collection(requireDb(), SHOOTS_COLLECTION, userId)
+  const shootsCol = shootsColPath(userId)
   const q = query(shootsCol)
   return onSnapshot(q, (snap) => {
     const shoots: Shoot[] = snap.docs.map(snapToArray<Shoot>)
@@ -156,17 +169,19 @@ export function subscribeShoots(
   })
 }
 
-// ===== CLIENTS (coleção por usuário) =====
+// ===== CLIENTS (subcoleção por usuário) =====
+// users/{uid}/clients — 3 segmentos (ímpar = coleção) ✓
+// users/{uid}/clients/{id} — 4 segmentos (par = documento) ✓
 
 export async function saveClient(userId: string, client: Omit<Client, "id"> & { id?: string }) {
   const id = client.id || generateId()
-  const clientDoc = doc(requireDb(), CLIENTS_COLLECTION, userId, id)
+  const clientDoc = clientsDocPath(userId, id)
   await setDoc(clientDoc, { ...client, id, updatedAt: serverTimestamp() }, { merge: true })
   return id
 }
 
 export async function deleteClient(userId: string, id: string) {
-  const clientDoc = doc(requireDb(), CLIENTS_COLLECTION, userId, id)
+  const clientDoc = clientsDocPath(userId, id)
   await deleteDoc(clientDoc)
 }
 
@@ -174,7 +189,7 @@ export function subscribeClients(
   userId: string,
   callback: (clients: Client[]) => void
 ) {
-  const clientsCol = collection(requireDb(), CLIENTS_COLLECTION, userId)
+  const clientsCol = clientsColPath(userId)
   const q = query(clientsCol)
   return onSnapshot(q, (snap) => {
     const clients: Client[] = snap.docs.map(snapToArray<Client>)
@@ -182,17 +197,19 @@ export function subscribeClients(
   })
 }
 
-// ===== EXPENSES (coleção por usuário) =====
+// ===== EXPENSES (subcoleção por usuário) =====
+// users/{uid}/expenses — 3 segmentos (ímpar = coleção) ✓
+// users/{uid}/expenses/{id} — 4 segmentos (par = documento) ✓
 
 export async function saveExpense(userId: string, expense: Omit<Expense, "id"> & { id?: string }) {
   const id = expense.id || generateId()
-  const expenseDoc = doc(requireDb(), EXPENSES_COLLECTION, userId, id)
+  const expenseDoc = expensesDocPath(userId, id)
   await setDoc(expenseDoc, { ...expense, id, updatedAt: serverTimestamp() }, { merge: true })
   return id
 }
 
 export async function deleteExpense(userId: string, id: string) {
-  const expenseDoc = doc(requireDb(), EXPENSES_COLLECTION, userId, id)
+  const expenseDoc = expensesDocPath(userId, id)
   await deleteDoc(expenseDoc)
 }
 
@@ -200,7 +217,7 @@ export function subscribeExpenses(
   userId: string,
   callback: (expenses: Expense[]) => void
 ) {
-  const expensesCol = collection(requireDb(), EXPENSES_COLLECTION, userId)
+  const expensesCol = expensesColPath(userId)
   const q = query(expensesCol)
   return onSnapshot(q, (snap) => {
     const expenses: Expense[] = snap.docs.map(snapToArray<Expense>)
@@ -209,6 +226,7 @@ export function subscribeExpenses(
 }
 
 // ===== HIDE FINANCIAL VALUES (documento por usuário) =====
+// settings/{uid} — 2 segmentos (par = documento) ✓
 
 export async function saveHideFinancialValues(userId: string, value: boolean) {
   const docRef = doc(requireDb(), "settings", userId)
