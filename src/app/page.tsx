@@ -48,6 +48,7 @@ import {
   Camera,
   RefreshCw,
   MapPin,
+  FileText,
 } from "lucide-react";
 
 import { format, parseISO } from "date-fns";
@@ -136,6 +137,7 @@ function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [firestoreReady, setFirestoreReady] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" && navigator.onLine);
+  const [legalInfo, setLegalInfo] = useState<null | "privacy" | "terms">(null);
 
   const lang = settings.lang;
   const tLang = useCallback((key: string) => t(key, lang), [lang]);
@@ -893,6 +895,9 @@ function AppContent() {
                   <DropdownMenuItem onClick={() => setCurrentTab("insights")} className="flex items-center justify-between px-1.5 py-0.5 gap-2"><DollarSign className="w-5 h-5 shrink-0" /><span className="truncate">Faturamento</span></DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setHideFinancialValues(!hideFinancialValues)} className={`flex items-center justify-between px-1.5 py-0.5 gap-2 ${hideFinancialValues ? "text-amber-500" : ""}`}><Eye className="w-5 h-5 shrink-0" /><span className="truncate">{hideFinancialValues ? t("user.showFinancial", lang) : t("user.hideFinancial", lang)}</span></DropdownMenuItem>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setLegalInfo("privacy")} className="flex items-center justify-between px-1.5 py-0.5 gap-2"><FileText className="w-5 h-5 shrink-0" /><span className="truncate">{tLang("user.privacyPolicy")}</span></DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLegalInfo("terms")} className="flex items-center justify-between px-1.5 py-0.5 gap-2"><FileText className="w-5 h-5 shrink-0" /><span className="truncate">{tLang("user.termsOfService")}</span></DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem className="flex items-center justify-between px-1.5 py-0.5 gap-2 text-destructive" onClick={() => { setLogoutOpen(true); }}><LogOut className="w-5 h-5 shrink-0" /><span className="truncate">Sair</span></DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1189,8 +1194,8 @@ function AppContent() {
             onFABClick={() => { setEditingShoot(null); setEditingClient(null); setNewShootOpen(true); }}
           />
 
-          {/* FAB for Desktop */}
-          {!isMobile && (
+          {/* FAB for Desktop - só aparece se houver shoots */}
+          {!isMobile && shoots.length > 0 && (
             <div className="fixed bottom-10 right-10 z-40">
               <DropdownMenu>
                 <DropdownMenuTrigger>
@@ -1258,6 +1263,32 @@ function AppContent() {
           />
 
         </div>
+        {/* Legal info dialog */}
+        {legalInfo && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setLegalInfo(null)}>
+            <div className="bg-card/95 border border-border/60 rounded-2xl p-6 w-full max-w-md shadow-2xl m-4" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-heading mb-4 text-wrap-balance">
+                {legalInfo === "privacy" ? tLang("user.privacyPolicy") : tLang("user.termsOfService")}
+              </h2>
+              <div className="text-body text-muted/80 space-y-3 max-h-[60vh] overflow-y-auto">
+                {legalInfo === "privacy" ? (
+                  <>
+                    <p>{t("privacy.text", lang) || "Seus dados pessoais e de negócios são armazenados exclusivamente no Firebase, vinculados ao seu usuário autenticado. O Lente não compartilha suas informações com terceiros."}</p>
+                    <p>Você pode exportar ou excluir todos os seus dados a qualquer momento em Configurações.</p>
+                  </>
+                ) : (
+                  <>
+                    <p>{t("terms.text", lang) || "Ao utilizar o Lente, você concorda com estes termos de uso. O aplicativo é destinado ao gerenciamento de shoots e clientes de fotografia. Você é responsável pelos dados que insere."}</p>
+                    <p>O uso do serviço é por sua conta e risco. O Lente não se responsabiliza por perda de dados decorrente de falhas externas.</p>
+                  </>
+                )}
+              </div>
+              <div className="mt-6 flex justify-end">
+                <Button onClick={() => setLegalInfo(null)} className="whitespace-nowrap">{t("modal.close", lang)}</Button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Toasts - fora da div principal para não ficar por baixo de menus/dropdowns */}
         <Toaster>
           {toasts.map(toast => (
