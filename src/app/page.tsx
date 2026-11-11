@@ -1190,7 +1190,7 @@ function AppContent() {
             currentTab={currentTab}
             onTabChange={setCurrentTab}
             lang={lang}
-            showFAB={isMobile && (currentTab === "today" || currentTab === "archive" || currentTab === "clients")}
+            showFAB={isMobile && shoots.length > 0 && (currentTab === "today" || currentTab === "archive" || currentTab === "clients")}
             onFABClick={() => { setEditingShoot(null); setEditingClient(null); setNewShootOpen(true); }}
           />
 
