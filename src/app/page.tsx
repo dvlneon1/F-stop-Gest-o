@@ -851,7 +851,17 @@ function AppContent() {
             ) : currentTab === "insights" ? (
               <InsightsView shoots={shoots} clients={clients} lang={lang} hideFinancialValues={hideFinancialValues} />
             ) : currentTab === "settings" ? (
-              <SettingsView settings={settings} setSettings={setSettings} shoots={shoots} clients={clients} lang={lang} />
+              <SettingsView
+                settings={settings}
+                setSettings={setSettings}
+                shoots={shoots}
+                clients={clients}
+                expenses={expenses}
+                userProfile={userProfile}
+                hideFinancialValues={hideFinancialValues}
+                userId={authFirebaseUser?.uid || ""}
+                lang={lang}
+              />
             ) : currentTab === "user" ? (
               <UserView
                 clients={clients}

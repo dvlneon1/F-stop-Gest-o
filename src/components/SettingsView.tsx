@@ -12,21 +12,75 @@ import { format, parseISO } from "date-fns";
 import { ptBR, enUS } from "date-fns/locale";
 import { ConfirmationDialog } from "@/components/ConfirmationDialog";
 import { exportShootsToSheets, exportClientsToSheets, importShootsFromSheets, importClientsFromSheets } from "@/lib/google-sheets";
+import { backupData, readBackupFile, restoreDataToFirestore } from "@/lib/backup-restore";
 
 interface SettingsViewProps {
   settings: { lang: string; theme: string; lastSync: string | null; sheetsApiKey: string; sheetsSpreadsheetId: string };
   setSettings: React.Dispatch<React.SetStateAction<{ lang: string; theme: string; lastSync: string | null; sheetsApiKey: string; sheetsSpreadsheetId: string }>>;
   shoots: any[];
   clients: any[];
+  expenses: any[];
+  userProfile: { name: string; email: string; phone: string; cpf: string; address: string };
+  hideFinancialValues: boolean;
+  userId: string;
   lang: string;
 }
 
-export function SettingsView({ settings, setSettings, shoots, clients, lang }: SettingsViewProps) {
+export function SettingsView({ settings, setSettings, shoots, clients, expenses, userProfile, hideFinancialValues, userId, lang }: SettingsViewProps) {
   const [clearAllOpen, setClearAllOpen] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoring, setRestoring] = useState(false);
+
   const handleClearAllSettings = () => {
     setClearAllOpen(false);
     window.location.reload();
   };
+
+  const handleBackup = () => {
+    backupData({
+      shoots,
+      clients,
+      expenses,
+      userProfile,
+      settings,
+      hideFinancialValues,
+      userId,
+    });
+  };
+
+  const handleRestoreFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setRestoreFile(file);
+    if (!file) return;
+    setRestoreOpen(true);
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+  };
+
+  const handleRestoreConfirm = async () => {
+    if (!restoreFile) return;
+    setRestoring(true);
+    const data = await readBackupFile(restoreFile);
+    if (!data) {
+      alert(t("settings.invalidFile", lang));
+      setRestoring(false);
+      setRestoreFile(null);
+      setRestoreOpen(false);
+      return;
+    }
+    const result = await restoreDataToFirestore(userId, data);
+    setRestoring(false);
+    setRestoreFile(null);
+    setRestoreOpen(false);
+    if (result.success) {
+      alert(t("settings.restoreSuccess", lang));
+      window.location.reload();
+    } else {
+      alert(`${t("settings.restoreError", lang)}\n${result.error}`);
+    }
+  };
+
   return (
     <div className="page-padding space-y-6 max-w-3xl mx-auto">
       <h1 className="text-display">{t("menu.settings", lang)}</h1>
@@ -63,25 +117,25 @@ export function SettingsView({ settings, setSettings, shoots, clients, lang }: S
           <div className="border-t border-border/60 pt-6">
             <h2 className="text-heading mb-3 text-wrap-balance">{t("settings.data", lang)}</h2>
             <div className="space-y-3">
-              <Button variant="outline" onClick={() => {
-                const data = {
-                  shoots,
-                  clients,
-                  settings,
-                };
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "lente-backup.json";
-                a.click();
-                URL.revokeObjectURL(url);
-              }}>
-                <Download className="w-4 h-4 mr-2" />{t("settings.export", lang)}
-              </Button>
-              <Button variant="destructive" onClick={() => { setClearAllOpen(true); }}>
-                <Trash2 className="w-4 h-4 mr-2" />{t("settings.clear", lang)}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button variant="outline" onClick={handleBackup}>
+                  <Download className="w-4 h-4 mr-2" />{t("settings.backup", lang)}
+                </Button>
+                <label className="flex items-center justify-center gap-2 px-3 py-2 border border-border/60 rounded-lg bg-card/90 hover:bg-card/80 cursor-pointer text-sm transition-colors">
+                  <Upload className="w-4 h-4" />
+                  <span>{t("settings.restore", lang)}</span>
+                  <input
+                    type="file"
+                    accept=".json"
+                    className="hidden"
+                    onChange={handleRestoreFileChange}
+                  />
+                </label>
+                <Button variant="destructive" onClick={() => { setClearAllOpen(true); }}>
+                  <Trash2 className="w-4 h-4 mr-2" />{t("settings.clear", lang)}
+                </Button>
+              </div>
+              <p className="text-data text-xs text-muted">{t("settings.backupInfo", lang)}</p>
             </div>
           </div>
 
@@ -155,6 +209,15 @@ export function SettingsView({ settings, setSettings, shoots, clients, lang }: S
             description={t("settings.clearConfirm", lang)}
             confirmLabel={t("settings.clear", lang)}
             onConfirm={handleClearAllSettings}
+            lang={lang}
+          />
+          <ConfirmationDialog
+            open={restoreOpen}
+            onClose={() => { setRestoreOpen(false); setRestoreFile(null); }}
+            title={t("confirm.title", lang)}
+            description={t("settings.restoreConfirm", lang)}
+            confirmLabel={t("settings.restore", lang)}
+            onConfirm={handleRestoreConfirm}
             lang={lang}
           />
         </CardContent>
