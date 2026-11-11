@@ -41,6 +41,15 @@ export interface ContractData {
   signature: string;
 }
 
+export type InvoiceStatus = "pending" | "partial" | "paid";
+
+export interface InvoiceData {
+  status: InvoiceStatus;
+  items: InvoiceItem[];
+  dueDate: string;
+  taxRate: number;
+}
+
 export interface Shoot {
   id: string;
   client: string;
@@ -61,6 +70,7 @@ export interface Shoot {
   deposit: boolean;
   balance: boolean;
   gallery: string | null;
+  invoiceData?: InvoiceData;
   amount?: number;
 }
 

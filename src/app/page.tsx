@@ -20,6 +20,7 @@ import { ConfirmationDialog } from "@/components/ConfirmationDialog";
 import { ContractModal } from "@/components/ContractModal";
 import { QuestionnaireModal } from "@/components/QuestionnaireModal";
 import { GalleryModal } from "@/components/GalleryModal";
+import { InvoiceModal } from "@/components/InvoiceModal";
 import { ToastComponent } from "@/components/ToastComponent";
 import { CalendarView } from "@/components/CalendarView";
 import { InsightsView } from "@/components/InsightsView";
@@ -117,6 +118,7 @@ function AppContent() {
   const [contractModalOpen, setContractModalOpen] = useState(false);
   const [questionnaireModalOpen, setQuestionnaireModalOpen] = useState(false);
   const [galleryModalOpen, setGalleryModalOpen] = useState(false);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"online" | "offline" | "syncing">("offline");
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: "default" | "success" | "error" }[]>([]);
@@ -480,6 +482,10 @@ function AppContent() {
         setShoots(prev => prev.map(s => s.id === panelShoot!.id ? { ...s, gallery: `gal_${generateId().slice(-4)}` } : s));
         showToast(tLang("toast.openingGallery"), "success");
         setPanelOpen(false);
+        break;
+      case "viewInvoice":
+        setPanelOpen(false);
+        setInvoiceModalOpen(true);
         break;
       case "editShoot":
         setEditingShoot(panelShoot);
@@ -967,6 +973,19 @@ function AppContent() {
             <GalleryModal
               open={galleryModalOpen}
               onClose={() => setGalleryModalOpen(false)}
+              shoot={panelShoot}
+              lang={lang}
+              setShoots={setShoots}
+              showToast={showToast}
+              tLang={tLang}
+            />
+          )}
+
+          {/* Invoice Modal */}
+          {panelShoot && (
+            <InvoiceModal
+              open={invoiceModalOpen}
+              onClose={() => setInvoiceModalOpen(false)}
               shoot={panelShoot}
               lang={lang}
               setShoots={setShoots}

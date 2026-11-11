@@ -4,8 +4,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR, enUS } from "date-fns/locale";
 import { Sun, User, MapPin, Edit, Trash2 } from "lucide-react";
 import { t } from "@/lib/i18n";
-import { typeLabels, statusLabels, eventSubcategories, photographerPlatforms } from "@/lib/constants";
-import { getInitials, getStatusColor } from "@/lib/utils";
+import { typeLabels, eventSubcategories, photographerPlatforms } from "@/lib/constants";import { getInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { Shoot, Client } from "@/lib/constants";
@@ -30,6 +29,15 @@ function getStatusText(key: string, value: boolean, shoot: Shoot, lang: string):
   if (key === "balance") return value ? paid : pending;
   if (key === "gallery") return value ? ready : pending;
   return pending;
+}
+
+function invoiceDataStatus(status: string, lang: string): string {
+  const labels: Record<string, string> = {
+    pending: t("invoice.statusPending", lang),
+    partial: t("invoice.statusPartial", lang),
+    paid: t("invoice.statusPaid", lang),
+  };
+  return labels[status] ?? labels.pending;
 }
 
 export function Panel({ shoot, client, isOpen, onClose, onAction, lang }: PanelProps) {
@@ -144,6 +152,15 @@ export function Panel({ shoot, client, isOpen, onClose, onAction, lang }: PanelP
                 {!shoot.balance && (
                   <Button variant="ghost" size="sm" onClick={() => onAction("markPaid")} className="h-8 px-2 text-data border border-border/60 hover:bg-muted/30 rounded-md">{t("panel.markPaid", lang)}</Button>
                 )}
+              </div>
+            </div>
+
+            {/* Invoice */}
+            <div className="flex items-center justify-between py-3 border-t border-border/60 first:border-t-0 w-full">
+              <span className="text-label">{t("panel.invoice", lang)}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-data text-right">{shoot.invoiceData ? invoiceDataStatus(shoot.invoiceData.status, lang) : t("status.pending", lang)}</span>
+                <Button variant="ghost" size="sm" onClick={() => onAction("viewInvoice")} className="h-8 px-2 text-data border border-border/60 hover:bg-muted/30 rounded-md">{t("panel.viewInvoice", lang)}</Button>
               </div>
             </div>
 
