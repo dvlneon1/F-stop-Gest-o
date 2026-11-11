@@ -14,7 +14,7 @@ import { Client } from "@/lib/constants";
 interface ClientModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: Partial<Client>) => void;
+  onSubmit: (data: Partial<Client>) => Promise<boolean>;
   client?: Client | null;
   lang: string;
 }
@@ -68,7 +68,7 @@ export function ClientModal({ open, onClose, onSubmit, client, lang }: ClientMod
     return errors;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors = validateClientForm(formData);
     if (Object.keys(errors).length > 0) {
@@ -76,7 +76,7 @@ export function ClientModal({ open, onClose, onSubmit, client, lang }: ClientMod
       return;
     }
     setFormErrors({});
-    onSubmit({
+    const ok = await onSubmit({
       ...formData,
       id: client?.id || generateId(),
       tags: formData.tags.split(",").map(t => t.trim()).filter(Boolean),
@@ -84,7 +84,7 @@ export function ClientModal({ open, onClose, onSubmit, client, lang }: ClientMod
       totalSpent: client?.totalSpent || 0,
       lastContact: format(new Date(), "yyyy-MM-dd"),
     });
-    onClose();
+    if (ok) onClose();
   };
 
   return (
@@ -93,7 +93,7 @@ export function ClientModal({ open, onClose, onSubmit, client, lang }: ClientMod
         <DialogHeader>
           <DialogTitle className="text-heading">{client ? t("clients.edit", lang) : t("clients.new", lang)}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4 mb-8">
+        <form id="clientForm" onSubmit={handleSubmit} className="space-y-4 py-4 mb-8">
           <div className="space-y-2">
             <Label htmlFor="name" className="text-label">{t("form.client", lang)}</Label>
             <Input id="name" placeholder={t("form.client", lang)} value={formData.name} onChange={(e) => { setFormData(prev => ({ ...prev, name: e.target.value })); if (formErrors.name) setFormErrors(prev => { const { name, ...rest } = prev; return rest; }); }} required />
@@ -140,8 +140,8 @@ export function ClientModal({ open, onClose, onSubmit, client, lang }: ClientMod
           </div>
         </form>
         <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>{t("modal.cancel", lang)}</Button>
-          <Button type="submit" form="clientForm" disabled={!formData.name || Object.keys(formErrors).length > 0}>{t("modal.save", lang)}</Button>
+          <Button type="button" variant="outline" onClick={onClose} className="whitespace-nowrap">{t("modal.cancel", lang)}</Button>
+          <Button type="submit" form="clientForm" disabled={!formData.name || Object.keys(formErrors).length > 0} className="whitespace-nowrap">{t("modal.save", lang)}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

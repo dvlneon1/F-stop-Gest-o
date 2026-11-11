@@ -12,7 +12,7 @@ interface GalleryModalProps {
   onClose: () => void;
   shoot: Shoot;
   lang: string;
-  setShoots: React.Dispatch<React.SetStateAction<Shoot[]>>;
+  setShoots: (value: Shoot[] | ((prev: Shoot[]) => Shoot[])) => Promise<boolean>;
   showToast: (message: string, type?: "default" | "success" | "error") => void;
   tLang: (key: string) => string;
 }
@@ -60,14 +60,14 @@ export function GalleryModal({ open, onClose, shoot, lang, setShoots, showToast,
           {!hasGallery && (
             <div className="p-3 rounded-xl border border-border/60 bg-card/50 backdrop-blur-md text-center">
               <p className="text-muted">{t("gallery.noImages", lang)}</p>
-              <Button variant="ghost" size="sm" onClick={() => { onClose(); setShoots(prev => prev.map(s => s.id === shoot.id ? { ...s, gallery: `gal_${generateId().slice(-4)}` } : s)); showToast(tLang("toast.openingGallery"), "success"); }}>
+              <Button variant="ghost" size="sm" onClick={async () => { onClose(); const ok = await setShoots(prev => prev.map(s => s.id === shoot.id ? { ...s, gallery: `gal_${generateId().slice(-4)}` } : s)); if (ok) showToast(tLang("toast.openingGallery"), "success"); }} className="whitespace-nowrap">
                 <Image className="w-4 h-4 mr-2" />{t("gallery.upload", lang)}
               </Button>
             </div>
           )}
         </div>
         <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={onClose} className="w-full">{t("modal.close", lang)}</Button>
+          <Button type="button" variant="outline" onClick={onClose} className="w-full whitespace-nowrap">{t("modal.close", lang)}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

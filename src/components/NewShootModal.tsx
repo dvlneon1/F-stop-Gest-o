@@ -16,7 +16,7 @@ import { DynamicIcon } from "@/components/DynamicIcon";
 interface NewShootModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: Partial<Shoot>) => void;
+  onSubmit: (data: Partial<Shoot>) => Promise<boolean>;
   clients: Client[];
   lang: string;
   editingShoot?: Shoot | null;
@@ -74,7 +74,7 @@ export function NewShootModal({ open, onClose, onSubmit, clients, lang, editingS
     }
   }, [editingShoot]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors = validateShootForm(formData);
     if (Object.keys(errors).length > 0) {
@@ -82,8 +82,8 @@ export function NewShootModal({ open, onClose, onSubmit, clients, lang, editingS
       return;
     }
     setShootFormErrors({});
-    onSubmit({ ...formData, id: editingShoot?.id || generateId() });
-    onClose();
+    const ok = await onSubmit({ ...formData, id: editingShoot?.id || generateId() });
+    if (ok) onClose();
   };
 
   const validateShootForm = (data: { client: string; date: string }) => {
@@ -99,7 +99,7 @@ export function NewShootModal({ open, onClose, onSubmit, clients, lang, editingS
         <DialogHeader>
           <DialogTitle className="text-heading">{editingShoot ? t("edit.shoot", lang) : t("modal.newShoot", lang)}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        <form id="formNewShoot" onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="client" className="text-label">{t("form.client", lang)}</Label>
             <Select value={formData.client} onValueChange={(v) => { setFormData(prev => ({ ...prev, client: v || "" })); if (shootFormErrors.client) setShootFormErrors(prev => { const { client, ...rest } = prev; return rest; }); }}>
@@ -189,8 +189,8 @@ export function NewShootModal({ open, onClose, onSubmit, clients, lang, editingS
           </div>
         </form>
         <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>{t("modal.cancel", lang)}</Button>
-          <Button type="submit" form="formNewShoot" disabled={!formData.client || !formData.date} className="bg-amber-500 text-amber-950 hover:bg-amber-400">{editingShoot ? t("modal.save", lang) : t("modal.create", lang)}</Button>
+          <Button type="button" variant="outline" onClick={onClose} className="whitespace-nowrap">{t("modal.cancel", lang)}</Button>
+          <Button type="submit" form="formNewShoot" disabled={!formData.client || !formData.date} className="bg-amber-500 text-amber-950 hover:bg-amber-400 whitespace-nowrap">{editingShoot ? t("modal.save", lang) : t("modal.create", lang)}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

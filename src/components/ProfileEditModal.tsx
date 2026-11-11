@@ -10,7 +10,7 @@ import { t } from "@/lib/i18n";
 interface ProfileEditModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; email: string; phone: string; cpf: string; address: string; photoURL?: string }) => void;
+  onSubmit: (data: { name: string; email: string; phone: string; cpf: string; address: string; photoURL?: string }) => Promise<boolean>;
   profile: { name: string; email: string; phone: string; cpf: string; address: string; photoURL?: string };
   lang: string;
 }
@@ -60,7 +60,7 @@ export function ProfileEditModal({ open, onClose, onSubmit, profile, lang }: Pro
     return errors;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors = validateProfileForm(formData);
     if (Object.keys(errors).length > 0) {
@@ -68,8 +68,8 @@ export function ProfileEditModal({ open, onClose, onSubmit, profile, lang }: Pro
       return;
     }
     setFormErrors({});
-    onSubmit(formData);
-    onClose();
+    const ok = await onSubmit(formData);
+    if (ok) onClose();
   };
 
   const tLang = (key: string) => t(key, lang);
@@ -80,7 +80,7 @@ export function ProfileEditModal({ open, onClose, onSubmit, profile, lang }: Pro
         <DialogHeader>
           <DialogTitle className="text-heading">{tLang("user.editProfile")}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4 mb-8">
+        <form id="profileEditForm" onSubmit={handleSubmit} className="space-y-4 py-4 mb-8">
           <div className="space-y-2">
             <Label htmlFor="name" className="text-label">{tLang("user.name")}</Label>
             <Input
@@ -172,10 +172,10 @@ export function ProfileEditModal({ open, onClose, onSubmit, profile, lang }: Pro
           </div>
         </form>
         <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} className="whitespace-nowrap">
             {tLang("modal.cancel")}
           </Button>
-          <Button type="submit" form="profileEditForm" disabled={!formData.name || Object.keys(formErrors).length > 0}>
+          <Button type="submit" form="profileEditForm" disabled={!formData.name || Object.keys(formErrors).length > 0} className="whitespace-nowrap">
             {tLang("modal.save")}
           </Button>
         </DialogFooter>

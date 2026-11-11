@@ -55,7 +55,6 @@ import { ptBR, enUS } from "date-fns/locale";
 
 import {
   Shoot, Client, Expense, ShootStatus,
-  defaultShoots, defaultClients,
   typeLabels,
 } from "@/lib/constants";
 import {
@@ -136,6 +135,7 @@ function AppContent() {
   const [welcomeTourOpen, setWelcomeTourOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [firestoreReady, setFirestoreReady] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" && navigator.onLine);
 
   const lang = settings.lang;
   const tLang = useCallback((key: string) => t(key, lang), [lang]);
@@ -185,6 +185,9 @@ function AppContent() {
       setSettingsLocal({ lang: "pt", theme: "system", lastSync: null, sheetsApiKey: "", sheetsSpreadsheetId: "" });
       setUserProfileLocal({ name: "", email: "", phone: "", cpf: "", address: "" });
       setHideFinancialValuesLocal(false);
+      setPendingShootDeletes(new Set());
+      setPendingClientDeletes(new Set());
+      setPendingExpenseDeletes(new Set());
       setFirestoreReady(false);
       return;
     }
@@ -193,34 +196,28 @@ function AppContent() {
 
     // Subscribe to Firestore collections in real-time
     const unsubShoots = subscribeShoots(userId, (data) => {
-      if (data.length === 0 && shoots.length === 0) {
-        // Seed with defaults on first-ever access
-        setShootsLocal(defaultShoots);
-        data.forEach(s => saveShoot(userId, { ...s, id: s.id }));
-      } else {
-        setShootsLocal(data);
-      }
+      // Filter out any shoots we've optimistically deleted (prevents reappearance on sync failure)
+      const filtered = data.filter(s => !pendingShootDeletes.has(s.id));
+      setShootsLocal(filtered);
     });
 
     const unsubClients = subscribeClients(userId, (data) => {
-      if (data.length === 0 && clients.length === 0) {
-        setClientsLocal(defaultClients);
-        data.forEach(c => saveClient(userId, { ...c, id: c.id }));
-      } else {
-        setClientsLocal(data);
-      }
+      const filtered = data.filter(c => !pendingClientDeletes.has(c.id));
+      setClientsLocal(filtered);
     });
 
     const unsubExpenses = subscribeExpenses(userId, (data) => {
-      setExpensesLocal(data);
+      const filtered = data.filter(e => !pendingExpenseDeletes.has(e.id));
+      setExpensesLocal(filtered);
     });
 
     const unsubProfile = subscribeUserProfile(userId, (data) => {
-      if (data) setUserProfileLocal(data);
-      else {
-        // Create default profile from Firebase Auth user
+      if (data) {
+        setUserProfileLocal(data);
+      } else {
+        // New user - start with EMPTY profile, let them fill it in
         const defaultProfile: UserProfileData = {
-          name: authFirebaseUser.displayName || "",
+          name: "",
           email: authFirebaseUser.email || "",
           phone: "",
           cpf: "",
@@ -228,7 +225,7 @@ function AppContent() {
           photoURL: authFirebaseUser.photoURL || undefined,
         };
         setUserProfileLocal(defaultProfile);
-        saveUserProfile(userId, defaultProfile);
+        // DON'T auto-save to Firestore - wait for user to edit and save
       }
     });
 
@@ -257,7 +254,7 @@ function AppContent() {
       unsubSettings();
       unsubHideFinancial();
     };
-  }, [authFirebaseUser, authLoading, shoots, clients]);
+  }, [authFirebaseUser, authLoading]);
 
   // Sync online/offline status + offline queue processing
   const processSyncQueue = useCallback(async () => {
@@ -273,22 +270,52 @@ function AppContent() {
           case "shoots":
             if (op.type === "delete") {
               await deleteShoot(userId, op.data.id);
+              setPendingShootDeletes(prev => {
+                const next = new Set(prev);
+                next.delete(op.data.id);
+                return next;
+              });
             } else {
               await saveShoot(userId, { ...op.data, id: op.data.id });
+              setPendingShootChanges(prev => {
+                const next = new Set(prev);
+                next.delete(op.data.id);
+                return next;
+              });
             }
             break;
           case "clients":
             if (op.type === "delete") {
               await deleteClient(userId, op.data.id);
+              setPendingClientDeletes(prev => {
+                const next = new Set(prev);
+                next.delete(op.data.id);
+                return next;
+              });
             } else {
               await saveClient(userId, { ...op.data, id: op.data.id });
+              setPendingClientChanges(prev => {
+                const next = new Set(prev);
+                next.delete(op.data.id);
+                return next;
+              });
             }
             break;
           case "expenses":
             if (op.type === "delete") {
               await deleteExpense(userId, op.data.id);
+              setPendingExpenseDeletes(prev => {
+                const next = new Set(prev);
+                next.delete(op.data.id);
+                return next;
+              });
             } else {
               await saveExpense(userId, { ...op.data, id: op.data.id });
+              setPendingExpenseChanges(prev => {
+                const next = new Set(prev);
+                next.delete(op.data.id);
+                return next;
+              });
             }
             break;
           case "settings":
@@ -313,10 +340,15 @@ function AppContent() {
 
   useEffect(() => {
     const handleOnline = () => {
+      setIsOnline(true);
       setSyncStatus("online");
       processSyncQueue();
     };
-    const handleOffline = () => setSyncStatus("offline");
+    const handleOffline = () => {
+      setIsOnline(false);
+      setSyncStatus("offline");
+    };
+    setIsOnline(typeof navigator !== "undefined" && navigator.onLine);
     setSyncStatus(typeof navigator !== "undefined" && navigator.onLine ? "online" : "offline");
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
@@ -331,69 +363,150 @@ function AppContent() {
   }, [isAuthenticated, hasSeenOnboarding]);
 
   // ===== FIRESTORE WRAPPERS (maintain same interface as useLocalStorage) =====
+// Fixed: Only save changed items, not entire array. Use batch writes for multiple changes.
 
-  const isOnline = typeof navigator !== "undefined" && navigator.onLine;
+  // Track pending local changes to avoid re-saving unchanged items from Firestore subscription
+  const [pendingShootChanges, setPendingShootChanges] = useState<Set<string>>(new Set());
+  const [pendingClientChanges, setPendingClientChanges] = useState<Set<string>>(new Set());
+  const [pendingExpenseChanges, setPendingExpenseChanges] = useState<Set<string>>(new Set());
+  // Track pending deletions to prevent subscription from overwriting optimistic updates
+  const [pendingShootDeletes, setPendingShootDeletes] = useState<Set<string>>(new Set());
+  const [pendingClientDeletes, setPendingClientDeletes] = useState<Set<string>>(new Set());
+  const [pendingExpenseDeletes, setPendingExpenseDeletes] = useState<Set<string>>(new Set());
 
-  const setShoots = useCallback((value: Shoot[] | ((prev: Shoot[]) => Shoot[])) => {
-    const next = value instanceof Function ? value(shoots) : value;
-    setShootsLocal(next);
-    if (authFirebaseUser) {
-      if (isOnline) {
-        next.forEach(s => saveShoot(authFirebaseUser.uid, { ...s, id: s.id }));
-      } else {
-        next.forEach(s => enqueueOperation(authFirebaseUser.uid, {
+  const saveShootToFirestore = useCallback(async (userId: string, shoot: Shoot, isOffline: boolean) => {
+    try {
+      if (isOffline) {
+        enqueueOperation(userId, {
           type: "update",
           collection: "shoots",
-          data: { ...s, id: s.id },
-          userId: authFirebaseUser.uid,
-        }));
-        setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
-      }
-    }
-  }, [shoots, authFirebaseUser, isOnline]);
-
-  const setClients = useCallback((value: Client[] | ((prev: Client[]) => Client[])) => {
-    const next = value instanceof Function ? value(clients) : value;
-    setClientsLocal(next);
-    if (authFirebaseUser) {
-      if (isOnline) {
-        next.forEach(c => saveClient(authFirebaseUser.uid, { ...c, id: c.id }));
+          data: { ...shoot, id: shoot.id },
+          userId,
+        });
       } else {
-        next.forEach(c => enqueueOperation(authFirebaseUser.uid, {
+        await saveShoot(userId, { ...shoot, id: shoot.id });
+      }
+      setPendingShootChanges(prev => {
+        const next = new Set(prev);
+        next.delete(shoot.id);
+        return next;
+      });
+    } catch (err) {
+      console.error("[saveShootToFirestore] Falha ao salvar shoot", shoot.id, err);
+      showToast(tLang("toast.errorSaving"), "error");
+    }
+  }, [showToast, tLang]);
+
+  const saveClientToFirestore = useCallback(async (userId: string, client: Client, isOffline: boolean) => {
+    try {
+      if (isOffline) {
+        enqueueOperation(userId, {
           type: "update",
           collection: "clients",
-          data: { ...c, id: c.id },
-          userId: authFirebaseUser.uid,
-        }));
-        setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
-      }
-    }
-  }, [clients, authFirebaseUser, isOnline]);
-
-  const setExpenses = useCallback((value: Expense[] | ((prev: Expense[]) => Expense[])) => {
-    const next = value instanceof Function ? value(expenses) : value;
-    setExpensesLocal(next);
-    if (authFirebaseUser) {
-      if (isOnline) {
-        next.forEach(e => saveExpense(authFirebaseUser.uid, { ...e, id: e.id }));
+          data: { ...client, id: client.id },
+          userId,
+        });
       } else {
-        next.forEach(e => enqueueOperation(authFirebaseUser.uid, {
+        await saveClient(userId, { ...client, id: client.id });
+      }
+      setPendingClientChanges(prev => {
+        const next = new Set(prev);
+        next.delete(client.id);
+        return next;
+      });
+    } catch (err) {
+      console.error("[saveClientToFirestore] Falha ao salvar cliente", client.id, err);
+      showToast(tLang("toast.errorSaving"), "error");
+    }
+  }, [showToast, tLang]);
+
+  const saveExpenseToFirestore = useCallback(async (userId: string, expense: Expense, isOffline: boolean) => {
+    try {
+      if (isOffline) {
+        enqueueOperation(userId, {
           type: "update",
           collection: "expenses",
-          data: { ...e, id: e.id },
-          userId: authFirebaseUser.uid,
-        }));
-        setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+          data: { ...expense, id: expense.id },
+          userId,
+        });
+      } else {
+        await saveExpense(userId, { ...expense, id: expense.id });
       }
+      setPendingExpenseChanges(prev => {
+        const next = new Set(prev);
+        next.delete(expense.id);
+        return next;
+      });
+    } catch (err) {
+      console.error("[saveExpenseToFirestore] Falha ao salvar despesa", expense.id, err);
+      showToast(tLang("toast.errorSaving"), "error");
     }
-  }, [expenses, authFirebaseUser, isOnline]);
+  }, [showToast, tLang]);
 
-  const setSettings = useCallback((value: SettingsData | ((prev: SettingsData) => SettingsData)) => {
+  const setShoots = useCallback(async (value: Shoot[] | ((prev: Shoot[]) => Shoot[])): Promise<boolean> => {
+    const next = value instanceof Function ? value(shoots) : value;
+    setShootsLocal(next);
+    if (!authFirebaseUser) return false;
+    try {
+      const changedIds = pendingShootChanges.size > 0 ? pendingShootChanges : new Set(next.map(s => s.id));
+      await Promise.all([...changedIds].map(async id => {
+        const shoot = next.find(s => s.id === id);
+        if (shoot) await saveShootToFirestore(authFirebaseUser.uid, shoot, !isOnline);
+      }));
+      if (!isOnline) setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+      return true;
+    } catch (err) {
+      console.error("[setShoots] Falha ao salvar shoots", err);
+      showToast(tLang("toast.errorSaving"), "error");
+      return false;
+    }
+  }, [shoots, authFirebaseUser, isOnline, pendingShootChanges, saveShootToFirestore, showToast, tLang]);
+
+  const setClients = useCallback(async (value: Client[] | ((prev: Client[]) => Client[])): Promise<boolean> => {
+    const next = value instanceof Function ? value(clients) : value;
+    setClientsLocal(next);
+    if (!authFirebaseUser) return false;
+    try {
+      const changedIds = pendingClientChanges.size > 0 ? pendingClientChanges : new Set(next.map(c => c.id));
+      await Promise.all([...changedIds].map(async id => {
+        const client = next.find(c => c.id === id);
+        if (client) await saveClientToFirestore(authFirebaseUser.uid, client, !isOnline);
+      }));
+      if (!isOnline) setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+      return true;
+    } catch (err) {
+      console.error("[setClients] Falha ao salvar clientes", err);
+      showToast(tLang("toast.errorSaving"), "error");
+      return false;
+    }
+  }, [clients, authFirebaseUser, isOnline, pendingClientChanges, saveClientToFirestore, showToast, tLang]);
+
+  const setExpenses = useCallback(async (value: Expense[] | ((prev: Expense[]) => Expense[])): Promise<boolean> => {
+    const next = value instanceof Function ? value(expenses) : value;
+    setExpensesLocal(next);
+    if (!authFirebaseUser) return false;
+    try {
+      const changedIds = pendingExpenseChanges.size > 0 ? pendingExpenseChanges : new Set(next.map(e => e.id));
+      await Promise.all([...changedIds].map(async id => {
+        const expense = next.find(e => e.id === id);
+        if (expense) await saveExpenseToFirestore(authFirebaseUser.uid, expense, !isOnline);
+      }));
+      if (!isOnline) setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+      return true;
+    } catch (err) {
+      console.error("[setExpenses] Falha ao salvar despesas", err);
+      showToast(tLang("toast.errorSaving"), "error");
+      return false;
+    }
+  }, [expenses, authFirebaseUser, isOnline, pendingExpenseChanges, saveExpenseToFirestore, showToast, tLang]);
+
+  const setSettings = useCallback(async (value: SettingsData | ((prev: SettingsData) => SettingsData)): Promise<boolean> => {
     const next = value instanceof Function ? value(settings) : value;
     setSettingsLocal(next);
-    if (authFirebaseUser) {
+    if (!authFirebaseUser) return false;
+    try {
       if (isOnline) {
-        saveSettings(authFirebaseUser.uid, next);
+        await saveSettings(authFirebaseUser.uid, next);
       } else {
         enqueueOperation(authFirebaseUser.uid, {
           type: "update",
@@ -403,15 +516,22 @@ function AppContent() {
         });
         setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
       }
+      return true;
+    } catch (err) {
+      console.error("[setSettings] Falha ao salvar configurações", err);
+      showToast(tLang("toast.errorSaving"), "error");
+      setSettingsLocal(settings);
+      return false;
     }
-  }, [settings, authFirebaseUser, isOnline]);
+  }, [settings, authFirebaseUser, isOnline, showToast, tLang]);
 
-  const setUserProfile = useCallback((value: UserProfileData | ((prev: UserProfileData) => UserProfileData)) => {
+  const setUserProfile = useCallback(async (value: UserProfileData | ((prev: UserProfileData) => UserProfileData)): Promise<boolean> => {
     const next = value instanceof Function ? value(userProfile) : value;
     setUserProfileLocal(next);
-    if (authFirebaseUser) {
+    if (!authFirebaseUser) return false;
+    try {
       if (isOnline) {
-        saveUserProfile(authFirebaseUser.uid, next);
+        await saveUserProfile(authFirebaseUser.uid, next);
       } else {
         enqueueOperation(authFirebaseUser.uid, {
           type: "update",
@@ -421,14 +541,23 @@ function AppContent() {
         });
         setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
       }
+      return true;
+    } catch (err) {
+      console.error("[setUserProfile] Falha ao salvar perfil", err);
+      showToast(tLang("toast.errorSaving"), "error");
+      setUserProfileLocal(userProfile);
+      return false;
     }
-  }, [userProfile, authFirebaseUser, isOnline]);
+  }, [userProfile, authFirebaseUser, isOnline, showToast, tLang]);
 
   const setHideFinancialValues = useCallback((value: boolean) => {
     setHideFinancialValuesLocal(value);
     if (authFirebaseUser) {
       if (isOnline) {
-        saveHideFinancialValues(authFirebaseUser.uid, value);
+        saveHideFinancialValues(authFirebaseUser.uid, value).catch(err => {
+          console.error("[setHideFinancialValues] Falha ao salvar", err);
+          showToast(tLang("toast.errorSaving"), "error");
+        });
       } else {
         enqueueOperation(authFirebaseUser.uid, {
           type: "update",
@@ -439,7 +568,7 @@ function AppContent() {
         setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
       }
     }
-  }, [authFirebaseUser, isOnline]);
+  }, [authFirebaseUser, isOnline, showToast, tLang]);
 
   // ===== HANDLERS =====
 
@@ -500,7 +629,7 @@ function AppContent() {
     }
   };
 
-  const handleNewShoot = (data: Partial<Shoot>) => {
+  const handleNewShoot = async (data: Partial<Shoot>): Promise<boolean> => {
     const newShoot: Shoot = {
       id: data.id || generateId(),
       client: data.client || "",
@@ -518,36 +647,64 @@ function AppContent() {
       balance: false,
       gallery: null,
     };
-    if (editingShoot) {
-      setShoots(prev => prev.map(s => s.id === editingShoot.id ? { ...s, ...newShoot } : s));
-      showToast("Shoot atualizado", "success");
-    } else {
-      setShoots(prev => [newShoot, ...prev]);
-      showToast(tLang("toast.created"), "success");
+    try {
+      if (editingShoot) {
+        const ok = await setShoots(prev => prev.map(s => s.id === editingShoot.id ? { ...s, ...newShoot } : s));
+        if (ok) {
+          showToast("Shoot atualizado", "success");
+          setEditingShoot(null);
+          return true;
+        }
+        return false;
+      } else {
+        const ok = await setShoots(prev => [newShoot, ...prev]);
+        if (ok) {
+          showToast(tLang("toast.created"), "success");
+          setEditingShoot(null);
+          return true;
+        }
+        return false;
+      }
+    } catch (err) {
+      showToast(tLang("toast.errorSaving"), "error");
+      return false;
     }
-    setEditingShoot(null);
   };
 
-  const handleNewClient = (data: Partial<Client>) => {
-    if (editingClient) {
-      setClients(prev => prev.map(c => c.id === editingClient.id ? { ...c, ...data } : c));
-      showToast(tLang("toast.clientUpdated"), "success");
-    } else {
-      const newClient: Client = {
-        id: generateId(),
-        name: data.name || "",
-        email: data.email || "",
-        phone: data.phone || "",
-        tags: data.tags || [],
-        totalShoots: 0,
-        totalSpent: 0,
-        lastContact: format(new Date(), "yyyy-MM-dd"),
-        notes: data.notes || "",
-      };
-      setClients(prev => [newClient, ...prev]);
-      showToast(tLang("toast.clientCreated"), "success");
+  const handleNewClient = async (data: Partial<Client>): Promise<boolean> => {
+    try {
+      if (editingClient) {
+        const ok = await setClients(prev => prev.map(c => c.id === editingClient.id ? { ...c, ...data } : c));
+        if (ok) {
+          showToast(tLang("toast.clientUpdated"), "success");
+          setEditingClient(null);
+          return true;
+        }
+        return false;
+      } else {
+        const newClient: Client = {
+          id: generateId(),
+          name: data.name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          tags: data.tags || [],
+          totalShoots: 0,
+          totalSpent: 0,
+          lastContact: format(new Date(), "yyyy-MM-dd"),
+          notes: data.notes || "",
+        };
+        const ok = await setClients(prev => [newClient, ...prev]);
+        if (ok) {
+          showToast(tLang("toast.clientCreated"), "success");
+          setEditingClient(null);
+          return true;
+        }
+        return false;
+      }
+    } catch (err) {
+      showToast(tLang("toast.errorSaving"), "error");
+      return false;
     }
-    setEditingClient(null);
   };
 
   const handleDeleteClient = (client: Client) => {
@@ -555,45 +712,61 @@ function AppContent() {
     setDeleteConfirmOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!pendingDelete) return;
-    if (pendingDelete.type === "shoot") {
-      setShoots(prev => prev.filter(s => s.id !== pendingDelete.id));
-      if (authFirebaseUser) {
-        if (isOnline) {
-          deleteShoot(authFirebaseUser.uid, pendingDelete.id);
-        } else {
-          enqueueOperation(authFirebaseUser.uid, {
-            type: "delete",
-            collection: "shoots",
-            data: { id: pendingDelete.id },
-            userId: authFirebaseUser.uid,
-          });
-          setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+    try {
+      if (pendingDelete.type === "shoot") {
+        setPendingShootDeletes(prev => {
+          const next = new Set(prev);
+          next.add(pendingDelete.id);
+          return next;
+        });
+        setShoots(prev => prev.filter(s => s.id !== pendingDelete.id));
+        if (authFirebaseUser) {
+          if (isOnline) {
+            await deleteShoot(authFirebaseUser.uid, pendingDelete.id);
+          } else {
+            enqueueOperation(authFirebaseUser.uid, {
+              type: "delete",
+              collection: "shoots",
+              data: { id: pendingDelete.id },
+              userId: authFirebaseUser.uid,
+            });
+            setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+          }
+        }
+      } else {
+        setPendingClientDeletes(prev => {
+          const next = new Set(prev);
+          next.add(pendingDelete.id);
+          return next;
+        });
+        setClients(prev => prev.filter(c => c.id !== pendingDelete.id));
+        if (authFirebaseUser) {
+          if (isOnline) {
+            await deleteClient(authFirebaseUser.uid, pendingDelete.id);
+          } else {
+            enqueueOperation(authFirebaseUser.uid, {
+              type: "delete",
+              collection: "clients",
+              data: { id: pendingDelete.id },
+              userId: authFirebaseUser.uid,
+            });
+            setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+          }
         }
       }
-    } else {
-      setClients(prev => prev.filter(c => c.id !== pendingDelete.id));
-      if (authFirebaseUser) {
-        if (isOnline) {
-          deleteClient(authFirebaseUser.uid, pendingDelete.id);
-        } else {
-          enqueueOperation(authFirebaseUser.uid, {
-            type: "delete",
-            collection: "clients",
-            data: { id: pendingDelete.id },
-            userId: authFirebaseUser.uid,
-          });
-          setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
-        }
-      }
+      showToast(pendingDelete.type === "shoot" ? tLang("toast.shootDeleted") : tLang("toast.clientDeleted"), "success");
+    } catch (err) {
+      console.error("[confirmDelete] Falha ao excluir", pendingDelete.id, err);
+      showToast(tLang("toast.errorDeleting"), "error");
+    } finally {
+      setDeleteConfirmOpen(false);
+      setPendingDelete(null);
     }
-    setDeleteConfirmOpen(false);
-    setPendingDelete(null);
-    showToast(pendingDelete.type === "shoot" ? tLang("toast.shootDeleted") : tLang("toast.clientDeleted"), "success");
   };
 
-  const handleNewExpense = (data: Partial<Expense>) => {
+  const handleNewExpense = async (data: Partial<Expense>): Promise<boolean> => {
     const newExpense: Expense = {
       id: generateId(),
       title: data.title || "",
@@ -605,8 +778,17 @@ function AppContent() {
       installments: data.installments,
       createdAt: format(new Date(), "yyyy-MM-dd HH:mm"),
     };
-    setExpenses(prev => [...prev, newExpense]);
-    showToast("Gasto registrado com sucesso", "success");
+    try {
+      const ok = await setExpenses(prev => [...prev, newExpense]);
+      if (ok) {
+        showToast("Gasto registrado com sucesso", "success");
+        return true;
+      }
+      return false;
+    } catch (err) {
+      showToast(tLang("toast.errorSaving"), "error");
+      return false;
+    }
   };
 
   const handleCalendarDateClick = (dateStr: string, dayShoots: Shoot[]) => {
@@ -697,9 +879,9 @@ function AppContent() {
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger>
-                  <button className="flex items-center justify-center w-12 h-12 rounded-full bg-card/90 border border-border/60 backdrop-blur-md transition-all duration-300 hover:bg-card/100" aria-label="Menu do usuário" tabIndex={0}>
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-card/90 border border-border/60 backdrop-blur-md transition-all duration-300 hover:bg-card/100" aria-label="Menu do usuário" tabIndex={0}>
                     <User className="w-7 h-7 text-foreground" />
-                  </button>
+                  </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem onClick={() => setCurrentTab("user")} className="flex items-center justify-between px-1.5 py-0.5 gap-2"><User className="w-5 h-5 shrink-0" /><span className="truncate">Minha Conta</span></DropdownMenuItem>
@@ -1071,13 +1253,13 @@ function AppContent() {
             lang={lang}
           />
 
-          {/* Toasts */}
-          <Toaster>
-            {toasts.map(toast => (
-              <ToastComponent key={toast.id} message={toast.message} type={toast.type} />
-            ))}
-          </Toaster>
         </div>
+        {/* Toasts - fora da div principal para não ficar por baixo de menus/dropdowns */}
+        <Toaster>
+          {toasts.map(toast => (
+            <ToastComponent key={toast.id} message={toast.message} type={toast.type} />
+          ))}
+        </Toaster>
         </>
       )}
     </>

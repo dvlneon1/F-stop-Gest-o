@@ -15,7 +15,7 @@ import { Expense } from "@/lib/constants";
 interface NewExpenseModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: Partial<Expense>) => void;
+  onSubmit: (data: Partial<Expense>) => Promise<boolean>;
   lang: string;
 }
 
@@ -51,9 +51,9 @@ export function NewExpenseModal({ open, onClose, onSubmit, lang }: NewExpenseMod
     installments: 1,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
+    const ok = await onSubmit({
       title: formData.title,
       category: formData.category,
       amount: Number(formData.amount) || 0,
@@ -62,7 +62,7 @@ export function NewExpenseModal({ open, onClose, onSubmit, lang }: NewExpenseMod
       paymentType: formData.paymentType,
       installments: formData.paymentType === "credito" ? formData.installments : undefined,
     });
-    onClose();
+    if (ok) onClose();
   };
 
   return (
@@ -71,7 +71,7 @@ export function NewExpenseModal({ open, onClose, onSubmit, lang }: NewExpenseMod
         <DialogHeader>
           <DialogTitle className="text-heading">{t("expenses.new", lang)}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        <form id="expenseForm" onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="expenseTitle" className="text-label">{t("expenses.title", lang)}</Label>
             <Input id="expenseTitle" placeholder={t("expenses.titlePlaceholder", lang)} value={formData.title} onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))} required />
@@ -141,8 +141,8 @@ export function NewExpenseModal({ open, onClose, onSubmit, lang }: NewExpenseMod
           </div>
         </form>
         <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>{t("modal.cancel", lang)}</Button>
-          <Button type="submit" form="expenseForm" disabled={!formData.title || !formData.category || !formData.amount || !formData.paymentType || (formData.paymentType === "credito" && !formData.installments)} className="bg-amber-500 text-amber-950 hover:bg-amber-400">{t("modal.save", lang)}</Button>
+          <Button type="button" variant="outline" onClick={onClose} className="whitespace-nowrap">{t("modal.cancel", lang)}</Button>
+          <Button type="submit" form="expenseForm" disabled={!formData.title || !formData.category || !formData.amount || !formData.paymentType || (formData.paymentType === "credito" && !formData.installments)} className="bg-amber-500 text-amber-950 hover:bg-amber-400 whitespace-nowrap">{t("modal.save", lang)}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

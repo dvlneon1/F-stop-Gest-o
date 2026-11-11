@@ -29,7 +29,7 @@ interface UserViewProps {
   onEditProfile: () => void;
   profileEditOpen: boolean;
   setProfileEditOpen: (v: boolean) => void;
-  onSaveProfile: (data: { name: string; email: string; phone: string; cpf: string; address: string; photoURL?: string }) => void;
+  onSaveProfile: (data: { name: string; email: string; phone: string; cpf: string; address: string; photoURL?: string }) => Promise<boolean>;
 }
 
 export function UserView({ clients, expenses, userProfile, newExpenseOpen, setNewExpenseOpen, handleNewExpense, onNewExpense, lang, hideFinancialValues, openGrossModal, openNetModal, openExpensesModal, openExpenseHistoryModal, grossRevenue, netRevenue, totalExpenses, onEditProfile, profileEditOpen, setProfileEditOpen, onSaveProfile }: UserViewProps) {
@@ -179,9 +179,9 @@ export function UserView({ clients, expenses, userProfile, newExpenseOpen, setNe
       <ProfileEditModal
         open={profileEditOpen}
         onClose={() => setProfileEditOpen(false)}
-        onSubmit={(data) => {
-          onSaveProfile(data);
-          setProfileEditOpen(false);
+        onSubmit={async (data) => {
+          const ok = await onSaveProfile(data);
+          if (ok) setProfileEditOpen(false);
         }}
         profile={userProfile}
         lang={lang}

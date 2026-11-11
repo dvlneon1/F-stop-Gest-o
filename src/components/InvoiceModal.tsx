@@ -16,7 +16,7 @@ interface InvoiceModalProps {
   onClose: () => void;
   shoot: Shoot;
   lang: string;
-  setShoots: (value: Shoot[] | ((prev: Shoot[]) => Shoot[])) => void;
+  setShoots: (value: Shoot[] | ((prev: Shoot[]) => Shoot[])) => Promise<boolean>;
   showToast: (message: string, type?: "default" | "success" | "error") => void;
   tLang: (key: string) => string;
 }
@@ -67,16 +67,18 @@ export function InvoiceModal({ open, onClose, shoot, lang, setShoots, showToast,
     });
   };
 
-  const saveInvoice = () => {
-    setShoots(prev => prev.map(s => s.id === shoot.id ? { ...s, invoiceData: invoice } : s));
-    showToast(t("invoice.saved", lang), "success");
-    onClose();
+  const saveInvoice = async () => {
+    const ok = await setShoots(prev => prev.map(s => s.id === shoot.id ? { ...s, invoiceData: invoice } : s));
+    if (ok) {
+      showToast(t("invoice.saved", lang), "success");
+      onClose();
+    }
   };
 
-  const markPaid = () => {
+  const markPaid = async () => {
     setInvoice(prev => ({ ...prev, status: "paid" as InvoiceStatus }));
-    saveInvoice();
-    showToast(t("invoice.markPaid", lang), "success");
+    const ok = await saveInvoice();
+    if (ok) showToast(t("invoice.markPaid", lang), "success");
   };
 
   const downloadPDF = () => {
@@ -270,15 +272,15 @@ export function InvoiceModal({ open, onClose, shoot, lang, setShoots, showToast,
           </div>
           <div className="flex w-full justify-end">
             {!isPaid ? (
-              <Button variant="outline" size="sm" onClick={markPaid} className="w-auto">
+              <Button variant="outline" size="sm" onClick={markPaid} className="w-auto whitespace-nowrap">
                 <CheckCircle2 className="w-4 h-4 mr-2" />{t("invoice.markPaid", lang)}
               </Button>
             ) : (
-              <Button variant="ghost" size="sm" disabled className="w-auto text-muted">
+              <Button variant="ghost" size="sm" disabled className="w-auto text-muted whitespace-nowrap">
                 <CheckCircle2 className="w-4 h-4 mr-2" />{t("invoice.markPaid", lang)}
               </Button>
             )}
-            <Button type="button" variant="default" onClick={saveInvoice} className="w-auto bg-amber-500 text-amber-950 hover:bg-amber-400">
+            <Button type="button" variant="default" onClick={saveInvoice} className="w-auto bg-amber-500 text-amber-950 hover:bg-amber-400 whitespace-nowrap">
               <FileText className="w-4 h-4 mr-2" />Salvar fatura
             </Button>
           </div>

@@ -32,9 +32,17 @@ export function SettingsView({ settings, setSettings, shoots, clients, expenses,
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoring, setRestoring] = useState(false);
 
-  const handleClearAllSettings = () => {
+  const handleClearAllSettings = async () => {
     setClearAllOpen(false);
-    window.location.reload();
+    if (!userId) return;
+    try {
+      // Clear local state immediately
+      setSettings({ lang: "pt", theme: "system", lastSync: null, sheetsApiKey: "", sheetsSpreadsheetId: "" });
+      alert(t("settings.clearedLocally", lang) || "Dados locais limpos. Os dados do Firestore precisam ser limpos no console do Firebase.");
+    } catch (err) {
+      console.error("[handleClearAllSettings] Falha ao limpar", err);
+      alert(t("settings.clearError", lang) || "Erro ao limpar dados locais.");
+    }
   };
 
   const handleBackup = () => {
@@ -156,8 +164,6 @@ export function SettingsView({ settings, setSettings, shoots, clients, expenses,
                     alert(t("settings.sheetsMissingConfig", lang));
                     return;
                   }
-                  const shoots = JSON.parse(localStorage.getItem("lente_shoots_v1") || "[]");
-                  const clients = JSON.parse(localStorage.getItem("lente_clients_v1") || "[]");
                   const [r1, r2] = await Promise.all([
                     exportShootsToSheets({ apiKey: settings.sheetsApiKey, spreadsheetId: settings.sheetsSpreadsheetId }, shoots),
                     exportClientsToSheets({ apiKey: settings.sheetsApiKey, spreadsheetId: settings.sheetsSpreadsheetId }, clients),

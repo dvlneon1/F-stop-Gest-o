@@ -23,8 +23,8 @@ export function ConfirmationDialog({ open, onClose, title, description, confirmL
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>{t("modal.cancel", lang)}</Button>
-          <Button type="button" variant="destructive" onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</Button>
+          <Button type="button" variant="outline" onClick={onClose} className="whitespace-nowrap">{t("modal.cancel", lang)}</Button>
+          <Button type="button" variant="destructive" onClick={async () => { await onConfirm(); onClose(); }} className="whitespace-nowrap">{confirmLabel}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
