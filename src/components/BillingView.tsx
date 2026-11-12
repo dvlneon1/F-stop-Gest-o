@@ -95,6 +95,14 @@ export function BillingView({
     paid: "text-green-500 bg-green-500/10 border-green-500/20",
   };
 
+  // Safe getters with fallbacks
+  const getStatusLabel = (status: InvoiceStatus, lang: string) => {
+    const dict = statusLabels[lang as keyof typeof statusLabels] ?? statusLabels.pt;
+    return dict[status] ?? status;
+  };
+  const getStatusIcon = (status: InvoiceStatus) => statusIcons[status] ?? AlertCircle;
+  const getStatusColor = (status: InvoiceStatus) => statusColors[status] ?? statusColors.pending;
+
   // Filter shoots that have invoice data
   const invoicedShoots = useMemo(() => {
     return shoots.filter((s) => s.invoiceData && s.invoiceData.items.length > 0);
@@ -273,9 +281,9 @@ export function BillingView({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("billing.filterAll", lang)}</SelectItem>
-              <SelectItem value="pending">{statusLabels[lang as keyof typeof statusLabels].pending}</SelectItem>
-              <SelectItem value="partial">{statusLabels[lang as keyof typeof statusLabels].partial}</SelectItem>
-              <SelectItem value="paid">{statusLabels[lang as keyof typeof statusLabels].paid}</SelectItem>
+              <SelectItem value="pending">{getStatusLabel("pending", lang)}</SelectItem>
+              <SelectItem value="partial">{getStatusLabel("partial", lang)}</SelectItem>
+              <SelectItem value="paid">{getStatusLabel("paid", lang)}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as any)}>
@@ -320,7 +328,6 @@ export function BillingView({
           const taxAmount = itemsTotal * (invoice.taxRate / 100);
           const totalAmount = itemsTotal + taxAmount;
           const status = invoice.status;
-          const StatusIcon = statusIcons[status];
           const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null;
           const isOverdue = dueDate && dueDate < new Date() && status !== "paid";
 
@@ -340,9 +347,12 @@ export function BillingView({
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${statusColors[status]}`}>
-                        <StatusIcon className="w-3 h-3" />
-                        {statusLabels[lang as keyof typeof statusLabels][status]}
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(status)}`}>
+                        {(() => {
+                          const Icon = getStatusIcon(status);
+                          return <Icon className="w-3 h-3" />;
+                        })()}
+                        {getStatusLabel(status, lang)}
                       </span>
                       {isOverdue && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
