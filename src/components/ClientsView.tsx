@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { t } from "@/lib/i18n";
 import { formatCurrency, getInitials, getStatusColor } from "@/lib/utils";
 import { EmptyState } from "@/components/EmptyState";
-import { Client, Shoot } from "@/lib/constants";
+import { Client, Shoot, getTagColor } from "@/lib/constants";
 
 interface ClientsViewProps {
   clients: Client[];
@@ -46,15 +46,6 @@ export function ClientsView({ clients, shoots, lang, hideFinancialValues, onClie
     return (
       <div className="flex-1 overflow-y-auto page-padding pb-40">
         <h1 className="mb-6 text-display text-wrap-balance">{t("session.clients", lang)}</h1>
-        <div className="clients-header sticky top-0 z-10 bg-background border-b border-border px-4 py-3 mb-4">
-          <Input
-            placeholder={t("clients.search", lang)}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full max-w-lg mx-auto sm:w-auto sm:mx-0"
-            aria-label={t("clients.search", lang)}
-          />
-        </div>
         <EmptyState
           icon={Users}
           title={t("clients.empty.title", lang)}
@@ -76,7 +67,7 @@ export function ClientsView({ clients, shoots, lang, hideFinancialValues, onClie
           placeholder={t("clients.search", lang)}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-none"
+          className="w-full"
           aria-label={t("clients.search", lang)}
         />
         <Select value={category} onValueChange={(v) => setCategory(v ?? "todos")}>
@@ -91,7 +82,7 @@ export function ClientsView({ clients, shoots, lang, hideFinancialValues, onClie
           </SelectContent>
         </Select>
       </div>
-      <div className="clients-list space-y-3 mb-24">
+      <div className="clients-list space-y-2 mb-24">
         {filtered.map(client => {
           const clientShoots = shoots.filter(s => s.client === client.name);
           // Unified financial truth: derive totals from shoots, not from stored client fields
@@ -106,14 +97,14 @@ export function ClientsView({ clients, shoots, lang, hideFinancialValues, onClie
           return (
             <article
               key={client.id}
-              className="client-card grid grid-cols-[56px_1fr_48px] gap-3 items-center rounded-xl border border-border/60 bg-card/90 backdrop-blur-md p-3 touch-manipulation transition-all duration-150 hover:border-muted/80 hover:bg-card/100 cursor-pointer"
+              className="client-card grid grid-cols-[auto_1fr_auto] gap-3 items-start rounded-lg border border-border/60 bg-card/80 backdrop-blur-md p-2 touch-manipulation transition-all duration-150 hover:border-muted/80 hover:bg-card/90 cursor-pointer"
               onClick={() => onClientClick(client)}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClientClick(client); }}}
               tabIndex={0}
               role="listitem"
               aria-label={`${client.name}, ${clientTotalShoots} ${t("clients.shoots", lang)}, ${hideFinancialValues ? "***" : formatCurrency(clientTotalSpent, lang)}`}
             >
-              <div className="client-card__avatar w-14 h-14 bg-border/60 flex items-center justify-center flex-shrink-0 rounded-xl overflow-hidden">
+              <div className="client-card__avatar w-10 h-10 bg-border/60 flex items-center justify-center flex-shrink-0 rounded-lg overflow-hidden border border-border/60">
                 {client.photoURL ? (
                   <img src={client.photoURL} alt={client.name} className="w-full h-full object-cover" />
                 ) : (
@@ -122,27 +113,30 @@ export function ClientsView({ clients, shoots, lang, hideFinancialValues, onClie
               </div>
               <div className="client-card__info min-w-0">
                 <h3 className="client-card__name text-heading truncate text-wrap-balance">{client.name}</h3>
-                <div className="client-card__meta flex flex-col gap-1 mt-1">
-                  <span className="client-card__email text-data truncate">{client.email}</span>
-                  <span className="client-card__phone text-data text-xs">{client.phone}</span>
+                <div className="client-card__meta flex flex-col gap-0.5 mt-0.5">
+                  <span className="client-card__email text-data/90 truncate text-sm">{client.email}</span>
+                  <span className="client-card__phone text-data/70 text-xs">{client.phone}</span>
                 </div>
-                <div className="client-card__tags flex flex-wrap gap-1 mt-2">
+                <div className="client-card__tags flex flex-wrap gap-1 mt-1.5">
                   {client.tags.map(tag => (
-                    <span key={tag} className="text-label border border-border/60 px-1.5 py-0 rounded-md">{tag}</span>
+                    <span key={tag} className="flex items-center gap-1 text-label border border-border/60 px-1.5 py-0.5 rounded-md">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getTagColor(tag) }} />
+                      {tag}
+                    </span>
                   ))}
                 </div>
-                <div className="client-card__stats flex flex-wrap items-center gap-2 mt-2">
-                  <span className="client-stat text-data text-xs">{clientTotalShoots} {t("clients.shoots", lang)}</span>
-                  <span className="client-stat text-data text-xs">{hideFinancialValues ? "***" : formatCurrency(clientTotalSpent, lang)}</span>
-                  <span className={`${getStatusColor(statusBadge as "booked" | "delivered" | "inquiry")} text-label px-2 py-0.5 border border-border/60 rounded-md`}>{statusText}</span>
+                <div className="client-card__stats flex flex-wrap items-center gap-1.5 mt-1.5">
+                  <span className="client-stat text-data/90 text-xs">{clientTotalShoots} {t("clients.shoots", lang)}</span>
+                  <span className="client-stat text-data/90 text-xs">{hideFinancialValues ? "***" : formatCurrency(clientTotalSpent, lang)}</span>
+                  <span className={`${getStatusColor(statusBadge as "booked" | "delivered" | "inquiry")} text-label px-2 py-0.5 border border-border/60 rounded-md text-xs`}>{statusText}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-center">
+              <div className="flex items-start justify-center pt-1">
                 <DropdownMenu>
                   <DropdownMenuTrigger>
-                    <div className="client-card__actions w-12 h-12 flex items-center justify-center bg-transparent border border-border/60 text-muted hover:border-muted/80 hover:text-foreground transition-colors rounded-full" aria-label={t("clients.actions", lang)} tabIndex={0}>
-                      <MoreHorizontal className="w-5 h-5" />
-                    </div>
+                    <button className="client-card__actions w-8 h-8 flex items-center justify-center bg-white/50 border border-white/30 text-white/80 hover:bg-white/70 hover:border-white/40 hover:text-white transition-colors rounded-full" aria-label={t("clients.actions", lang)} tabIndex={0}>
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEditClient(client); }} className="flex items-center gap-2"><Edit className="w-4 h-4" />{t("clients.edit", lang)}</DropdownMenuItem>

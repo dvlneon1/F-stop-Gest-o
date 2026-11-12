@@ -2,9 +2,9 @@
 
 import { format, parseISO } from "date-fns";
 import { ptBR, enUS } from "date-fns/locale";
-import { Sun, User, MapPin, Edit, Trash2 } from "lucide-react";
+import { Sun, User, MapPin, Edit, Trash2, Calendar, Clock } from "lucide-react";
 import { t } from "@/lib/i18n";
-import { typeLabels, eventSubcategories, photographerPlatforms } from "@/lib/constants";import { getInitials } from "@/lib/utils";
+import { typeLabels, eventSubcategories, photographerPlatforms, platformStatusLabels } from "@/lib/constants";import { getInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { Shoot, Client } from "@/lib/constants";
@@ -55,7 +55,7 @@ export function Panel({ shoot, client, isOpen, onClose, onAction, lang }: PanelP
         aria-hidden="true"
       />
       <aside
-        className={`fixed z-[60] flex flex-col transition-transform duration-350 ease-out ${isOpen ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"} ${isOpen ? "" : "pointer-events-none"} bottom-0 left-0 right-0 pb-24 max-h-[calc(100vh-3rem)] md:top-24 md:pb-0 md:left-1/2 md:-translate-x-1/2 md:max-h-[85vh] md:w-[calc(100vw-4rem)] md:max-w-4xl rounded-2xl border border-border/60 bg-popover/60 backdrop-blur-md shadow-2xl overflow-y-auto`}
+        className={`fixed z-[60] flex flex-col transition-transform duration-350 ease-out ${isOpen ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"} ${isOpen ? "" : "pointer-events-none"} bottom-0 left-0 right-0 pb-24 max-h-screen rounded-2xl border border-border/60 bg-popover/60 backdrop-blur-md shadow-2xl overflow-y-auto`}
         role="dialog"
         aria-modal="true"
         aria-label={t("shoot.details", lang)}
@@ -66,12 +66,19 @@ export function Panel({ shoot, client, isOpen, onClose, onAction, lang }: PanelP
           <div className="flex flex-col items-start gap-2 w-full">
             <div className="flex items-center gap-3 w-full">
               <div className="w-16 h-16 bg-border/60 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
-                {client?.photoURL ? (
-                  <img src={client.photoURL} alt={client.name} className="w-full h-full object-cover" />
-                ) : client ? (
-                  <span className="text-data text-muted text-xl">{getInitials(client.name)}</span>
-                ) : (
-                  <User className="w-8 h-8 text-muted" />
+                {shoot.type === "platform" && shoot.platform && (
+                  <DynamicIcon component={photographerPlatforms[shoot.platform].icon} className="w-8 h-8 text-amber-500" />
+                )}
+                {shoot.type !== "platform" && (
+                  <>
+                    {client?.photoURL ? (
+                      <img src={client.photoURL} alt={client.name} className="w-full h-full object-cover" />
+                    ) : client ? (
+                      <span className="text-data text-muted text-xl">{getInitials(client.name)}</span>
+                    ) : (
+                      <User className="w-8 h-8 text-muted" />
+                    )}
+                  </>
                 )}
               </div>
               <div className="flex flex-col items-start gap-1 min-w-0">
@@ -91,11 +98,29 @@ export function Panel({ shoot, client, isOpen, onClose, onAction, lang }: PanelP
                       <span className="text-label capitalize text-amber-500">{shoot.eventTitle}</span>
                     </>
                   )}
+                  {shoot.type === "platform" && shoot.platformJobId && (
+                    <>
+                      <span className="text-label opacity-50">·</span>
+                      <span className="text-label text-cyan-500 font-mono text-xs">#{shoot.platformJobId}</span>
+                    </>
+                  )}
                   <span className="text-label opacity-50">·</span>
-                  <span className="text-label">{format(parseISO(shoot.date), "dd MMM yyyy", { locale: lang === "pt" ? ptBR : enUS })}</span>
+                  <span className="text-label flex items-center gap-1"><Calendar className="w-3 h-3 text-amber-500" />{format(parseISO(shoot.date), "dd MMM yyyy", { locale: lang === "pt" ? ptBR : enUS })}</span>
                   <span className="text-label opacity-50">·</span>
-                  <span className="text-label">{shoot.time}</span>
+                  <span className="text-label flex items-center gap-1"><Clock className="w-3 h-3 text-amber-500" />{shoot.time}</span>
                 </div>
+                {shoot.type === "platform" && shoot.platformStatus && (
+                  <div className="flex items-center gap-1 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-2 py-1 text-data text-xs font-medium rounded-md mt-2">
+                    <span className="text-label">{t("form.platformStatus", lang)}:</span>
+                    <span className="capitalize">{platformStatusLabels[lang as keyof typeof platformStatusLabels]?.[shoot.platformStatus] || shoot.platformStatus}</span>
+                  </div>
+                )}
+              {shoot.type === "platform" && shoot.subcategory && (
+                  <div className="flex items-center gap-1 bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-1 text-data text-xs font-medium rounded-md mt-2">
+                    <span className="text-label">{t("form.subcategory", lang)}:</span>
+                    <span className="capitalize">{eventSubcategories[shoot.subcategory].label}</span>
+                  </div>
+                )}
               </div>
             </div>
             {isTodayShoot && (
@@ -200,6 +225,53 @@ export function Panel({ shoot, client, isOpen, onClose, onAction, lang }: PanelP
               </div>
             )}
           </div>
+
+          {/* Platform-specific financial info */}
+          {shoot.type === "platform" && (
+            <div className="space-y-3 pt-3 border-t border-border/60 w-full bg-cyan-500/5 rounded-lg p-3">
+              <h3 className="text-label font-medium text-cyan-700 dark:text-cyan-300">{t("panel.platformFinancials", lang)}</h3>
+              {shoot.platformStatus && (
+                <div className="flex items-center gap-1 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-2 py-1 text-data text-xs font-medium rounded-md">
+                  <span className="text-label">{t("form.platformStatus", lang)}:</span>
+                  <span className="capitalize">{platformStatusLabels[lang as keyof typeof platformStatusLabels]?.[shoot.platformStatus] || shoot.platformStatus}</span>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-label opacity-70">{t("form.platformFee", lang)}</p>
+                  <p className="text-data font-medium">{shoot.platformFee ? `R$ ${Number(shoot.platformFee).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "-"}</p>
+                </div>
+                <div>
+                  <p className="text-label opacity-70">{t("form.commissionRate", lang)}</p>
+                  <p className="text-data font-medium">{shoot.commissionRate ? `${shoot.commissionRate}%` : "-"}</p>
+                </div>
+                <div>
+                  <p className="text-label opacity-70">{t("form.estimatedSales", lang)}</p>
+                  <p className="text-data font-medium">{shoot.estimatedSales ? `R$ ${Number(shoot.estimatedSales).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "-"}</p>
+                </div>
+                <div>
+                  <p className="text-label opacity-70">{t("form.actualSales", lang)}</p>
+                  <p className="text-data font-medium">{shoot.actualSales ? `R$ ${Number(shoot.actualSales).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "-"}</p>
+                </div>
+                <div>
+                  <p className="text-label opacity-70">{t("form.uploadDeadline", lang)}</p>
+                  <p className="text-data font-medium flex items-center gap-1">{shoot.uploadDeadline ? <><Calendar className="w-3 h-3 text-amber-500" />{format(parseISO(shoot.uploadDeadline), "dd MMM yyyy", { locale: lang === "pt" ? ptBR : enUS })}</> : "-"}</p>
+                </div>
+                <div>
+                  <p className="text-label opacity-70">{t("form.salesPeriodEnd", lang)}</p>
+                  <p className="text-data font-medium flex items-center gap-1">{shoot.salesPeriodEnd ? <><Calendar className="w-3 h-3 text-amber-500" />{format(parseISO(shoot.salesPeriodEnd), "dd MMM yyyy", { locale: lang === "pt" ? ptBR : enUS })}</> : "-"}</p>
+                </div>
+              </div>
+              {shoot.platformFee && shoot.commissionRate && (shoot.actualSales || shoot.estimatedSales) && (
+                <div className="pt-2 border-t border-cyan-500/30">
+                  <p className="text-label font-medium">{t("panel.projectedRevenue", lang)}</p>
+                  <p className="text-data text-lg font-semibold text-cyan-700 dark:text-cyan-300">
+                    R$ {(shoot.platformFee + ((shoot.actualSales || shoot.estimatedSales || 0) * (shoot.commissionRate || 0) / 100)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Actions - Text-only buttons with hairline borders, no rounded */}
           <div className="flex flex-col gap-2 pt-4 border-t border-border/60 w-full">

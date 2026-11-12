@@ -20,9 +20,9 @@ import {
   Target,
 } from "lucide-react";
 
-export type ShootType = "wedding" | "portrait" | "commercial" | "family" | "event";
+export type ShootType = "wedding" | "portrait" | "commercial" | "family" | "event" | "platform";
 export type ShootStatus = "inquiry" | "booked" | "shot" | "culled" | "proofing" | "delivered" | "paid" | "today";
-export type CoverType = "wedding" | "portrait" | "commercial" | "family" | "event";
+export type CoverType = "wedding" | "portrait" | "commercial" | "family" | "event" | "platform";
 
 export type ShootSubcategory =
   | "show"
@@ -59,6 +59,14 @@ export interface Shoot {
   subcategory?: ShootSubcategory;
   eventTitle?: string;
   platform?: string;
+  platformJobId?: string;
+  platformFee?: number;
+  commissionRate?: number;
+  estimatedSales?: number;
+  actualSales?: number;
+  uploadDeadline?: string;
+  salesPeriodEnd?: string;
+  platformStatus?: "assigned" | "shot" | "uploaded" | "selling" | "closed" | "paid";
   location: string;
   status: ShootStatus;
   cover: CoverType;
@@ -68,10 +76,12 @@ export interface Shoot {
   contractData?: ContractData;
   questionnaire: boolean;
   deposit: boolean;
+  depositAmount?: number;
   balance: boolean;
   gallery: string | null;
   invoiceData?: InvoiceData;
   amount?: number;
+  totalAmount?: number;
 }
 
 export interface Client {
@@ -148,6 +158,7 @@ export const typeIcons: Record<ShootType, React.ReactNode> = {
   commercial: <Briefcase className="w-6 h-6" strokeWidth={1.5} />,
   family: <Users className="w-6 h-6" strokeWidth={1.5} />,
   event: <Music className="w-6 h-6" strokeWidth={1.5} />,
+  platform: <Globe className="w-6 h-6" strokeWidth={1.5} />,
 };
 
 export const statusLabels = {
@@ -156,9 +167,40 @@ export const statusLabels = {
 };
 
 export const typeLabels = {
-  pt: { wedding: "Casamento", portrait: "Retrato", commercial: "Comercial", family: "Família", event: "Evento" },
-  en: { wedding: "Wedding", portrait: "Portrait", commercial: "Commercial", family: "Family", event: "Event" },
+  pt: { wedding: "Casamento", portrait: "Retrato", commercial: "Comercial", family: "Família", event: "Evento", platform: "Plataforma" },
+  en: { wedding: "Wedding", portrait: "Portrait", commercial: "Commercial", family: "Family", event: "Event", platform: "Platform" },
 };
+
+export const platformStatusLabels = {
+  pt: { assigned: "Atribuído", shot: "Fotografado", uploaded: "Enviado", selling: "Em vendas", closed: "Fechado", paid: "Pago" },
+  en: { assigned: "Assigned", shot: "Shot", uploaded: "Uploaded", selling: "Selling", closed: "Closed", paid: "Paid" },
+};
+
+// ===== TAG COLORS (Apple-style traffic light) =====
+
+export const PREDEFINED_TAGS = [
+  "VIP",
+  "Recorrente",
+  "Evento",
+  "Retrato",
+  "Casamento",
+  "Corporativo",
+] as const;
+
+export type PredefinedTag = typeof PREDEFINED_TAGS[number];
+
+export const TAG_COLORS: Record<PredefinedTag, string> = {
+  VIP: "#FF3B30",        // Red - Apple red
+  Recorrente: "#34C759", // Green - Apple green
+  Evento: "#FF9500",     // Orange - Apple orange
+  Retrato: "#AF52DE",    // Purple - Apple purple
+  Casamento: "#FF2D92",  // Pink - Apple pink
+  Corporativo: "#007AFF", // Blue - Apple blue
+};
+
+export function getTagColor(tag: string): string {
+  return TAG_COLORS[tag as PredefinedTag] || "#8E8E93"; // Gray fallback
+}
 
 // ===== DEFAULTS =====
 
@@ -169,6 +211,7 @@ export const defaultShoots: Shoot[] = [
   { id: "4", client: "Família Oliveira", date: "2026-11-05", time: "16:30", type: "family", location: "Parque Ibirapuera", status: "delivered", cover: "family", notes: "Sessão lifestyle ao ar livre. Golden hour 17h30. Crianças 4 e 7 anos.", contract: true, contractSigned: true, contractData: { template: "family", signedAt: "2026-10-28", signedBy: "João Oliveira", signature: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" }, questionnaire: true, deposit: true, balance: true, gallery: "gal_004", amount: 1500 },
   { id: "5", client: "Banda Aurora", date: "2026-11-25", time: "20:00", type: "event", subcategory: "show", location: "Audio Club, SP", status: "proofing", cover: "event", notes: "Show lançamento álbum. Palco + backstage. Baixa luz, ISO alto.", contract: true, contractSigned: false, questionnaire: true, deposit: true, balance: false, gallery: "gal_005", amount: 2800 },
   { id: "6", client: "Carolina Mendes", date: "2026-11-08", time: "15:00", type: "portrait", location: "Estúdio Casa", status: "today", cover: "portrait", notes: "Book 15 anos. 4 looks. Maquiagem inclusa. Entrega 15 dias.", contract: true, contractSigned: true, contractData: { template: "portrait", signedAt: "2026-11-07", signedBy: "Carolina Mendes", signature: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" }, questionnaire: true, deposit: true, balance: true, gallery: null, amount: 1200 },
+  { id: "7", client: "Fotop Eventos", date: "2026-12-01", time: "08:00", type: "platform", platform: "fotop", platformJobId: "FP-2026-001234", platformFee: 150, commissionRate: 30, estimatedSales: 2000, uploadDeadline: "2026-12-05", salesPeriodEnd: "2027-03-01", platformStatus: "assigned", location: "Maratona São Paulo", status: "booked", cover: "event", notes: "Cobertura maratona SP. Entrega fotos em 48h. Venda por 90 dias.", contract: true, contractSigned: true, questionnaire: false, deposit: false, balance: false, gallery: null, amount: 0 },
 ];
 
 export const defaultClients: Client[] = [
@@ -246,6 +289,19 @@ export const contractTemplates: Record<ShootType, { title: string; clauses: { ti
       { title: "6. Cancelamento", text: "Até 14 dias: sinal 50% retido. <14 dias: sinal integral. FOTÓGRAFO: devolução + 25%. Força maior: reagendamento." },
       { title: "7. Prazo de Entrega", text: "Seleção urgente (50 imagens) em 48h. Completa em 10 dias úteis. Aprovação de tratamento em lote." },
       { title: "8. Disposições Gerais", text: "Credenciamento responsabilidade do CLIENTE. Seguro equipamento: FOTÓGRAFO. Lei brasileira. Assinatura digital válida." },
+    ],
+  },
+  platform: {
+    title: "Contrato de Fotografia — Plataforma de Venda",
+    clauses: [
+      { title: "1. Partes", text: "Fotógrafo: [Seu Nome/Empresa], doravante \"FOTÓGRAFO\". Plataforma: {client}, doravante \"PLATAFORMA\"." },
+      { title: "2. Objeto", text: "Cobertura fotográfica para venda na plataforma {platform} (Job ID: {platformJobId}) em {date} às {time} em {location}. Prazo de upload: {uploadDeadline}. Período de vendas até {salesPeriodEnd}." },
+      { title: "3. Entregáveis", text: "Imagens tratadas em alta resolução (JPEG) conforme especificações da plataforma. Upload até {uploadDeadline}. Metadados completos (EXIF, palavras-chave)." },
+      { title: "4. Direitos de Uso", text: "PLATAFORMA: licença não exclusiva para exibição, marketing e venda das imagens. FOTÓGRAFO: mantém direitos autorais; pode usar em portfólio (exceto se cláusula de exclusividade)." },
+      { title: "5. Investimento & Comissão", text: "Taxa fixa da plataforma: R$ {platformFee}. Comissão sobre vendas: {commissionRate}%. Vendas estimadas: R$ {estimatedSales}. Pagamento: taxa fixa na assinatura; comissão paga mensalmente após vendas." },
+      { title: "6. Cancelamento", text: "Antes do upload: taxa fixa não reembolsável. Após upload: comissão devida sobre vendas realizadas. PLATAFORMA cancela: devolução taxa fixa + 20% multa." },
+      { title: "7. Prazos & Status", text: "Status: assigned → shot → uploaded → selling → closed → paid. Upload até {uploadDeadline}. Vendas até {salesPeriodEnd}. Relatórios mensais." },
+      { title: "8. Disposições Gerais", text: "Lei aplicável: brasileira. Foro: comarca do FOTÓGRAFO. Assinatura digital válida (MP 2.200-2/2001). Dados de vendas confidenciais." },
     ],
   },
 };
@@ -404,6 +460,38 @@ export const questionnaireTemplates: Record<ShootType, { title: string; sections
       ]},
     ],
   },
+  platform: {
+    title: "Questionário — Plataforma de Venda",
+    sections: [
+      { title: "Detalhes da Plataforma", fields: [
+        { id: "platformName", type: "select", label: "Plataforma", options: Object.keys(photographerPlatforms).map(k => photographerPlatforms[k].label), required: true },
+        { id: "platformJobId", type: "text", label: "Job ID / Referência na plataforma", required: true },
+        { id: "eventName", type: "text", label: "Nome do evento/ocasião", required: true },
+        { id: "venue", type: "text", label: "Local (nome + endereço)", required: true },
+        { id: "eventDate", type: "date", label: "Data do evento", required: true },
+        { id: "eventTime", type: "time", label: "Horário do evento", required: true },
+      ]},
+      { title: "Especificações Técnicas", fields: [
+        { id: "platformSpecs", type: "textarea", label: "Especificações da plataforma (resolução, formato, metadados, naming)" },
+        { id: "uploadDeadline", type: "date", label: "Prazo de upload", required: true },
+        { id: "salesPeriodEnd", type: "date", label: "Fim do período de vendas", required: true },
+        { id: "platformFee", type: "number", label: "Taxa fixa da plataforma (R$)", default: 0 },
+        { id: "commissionRate", type: "number", label: "Comissão sobre vendas (%)", default: 30 },
+        { id: "estimatedSales", type: "number", label: "Vendas estimadas (R$)", default: 0 },
+      ]},
+      { title: "Acesso & Logística", fields: [
+        { id: "accessType", type: "select", label: "Tipo de acesso", options: ["Credencial total", "Área restrita", "Plateia apenas", "A definir"] },
+        { id: "contactPerson", type: "text", label: "Pessoa de contato no dia (nome + telefone)" },
+        { id: "securityNotes", type: "textarea", label: "Restrições (áreas proibidas, flash, equipamento)" },
+      ]},
+      { title: "Entrega & Pós-Evento", fields: [
+        { id: "selectionProcess", type: "select", label: "Processo de seleção", options: ["Fotógrafo seleciona", "Plataforma seleciona", "Misto", "Todas vão para venda"] },
+        { id: "minImages", type: "number", label: "Mínimo de imagens para upload", default: 50 },
+        { id: "keywords", type: "textarea", label: "Palavras-chave / tags para SEO na plataforma" },
+        { id: "pricingStrategy", type: "select", label: "Estratégia de preço", options: ["Preço fixo por plataforma", "Por faixa de resolução", "Por tipo de licença", "A definir"] },
+      ]},
+    ],
+  },
 };
 
 export const galleryTemplates: Record<ShootType, { title: string; sections: { name: string; order: number }[] }> = {
@@ -412,6 +500,7 @@ export const galleryTemplates: Record<ShootType, { title: string; sections: { na
   commercial: { title: "Galeria Comercial", sections: [{ name: "Headshots", order: 1 }, { name: "Produto", order: 2 }, { name: "Lifestyle", order: 3 }, { name: "Ambiente", order: 4 }] },
   family: { title: "Galeria Família", sections: [{ name: "Posadas", order: 1 }, { name: "Espontâneas", order: 2 }, { name: "Detalhes", order: 3 }, { name: "Pets", order: 4 }] },
   event: { title: "Galeria de Evento", sections: [{ name: "Palco", order: 1 }, { name: "Backstage", order: 2 }, { name: "Público", order: 3 }, { name: "Detalhes", order: 4 }, { name: "VIPs", order: 5 }] },
+  platform: { title: "Galeria de Plataforma", sections: [{ name: "Evento", order: 1 }, { name: "Detalhes", order: 2 }, { name: "Entrega", order: 3 }] },
 };
 
 export const invoiceTemplates: Record<ShootType, { title: string; items: InvoiceItem[] }> = {
@@ -420,4 +509,5 @@ export const invoiceTemplates: Record<ShootType, { title: string; items: Invoice
   commercial: { title: "Fatura — Comercial / Corporativo", items: [{ description: "Produção fotográfica (4h)", quantity: 1, unitPrice: 4500 }, { description: "150+ imagens tratadas", quantity: 1, unitPrice: 0 }, { description: "Licença comercial perpétua (2 anos exclusiva)", quantity: 1, unitPrice: 0 }, { description: "Entrega via link seguro + backup", quantity: 1, unitPrice: 0 }, { description: "Despesas extras (deslocamento, hospedagem)", quantity: 1, unitPrice: 0 }] },
   family: { title: "Fatura — Família / Lifestyle", items: [{ description: "Sessão lifestyle (1.5h)", quantity: 1, unitPrice: 1800 }, { description: "50+ imagens tratadas", quantity: 1, unitPrice: 0 }, { description: "Galeria online (12 meses)", quantity: 1, unitPrice: 0 }, { description: "Álbum 20x20cm (opcional)", quantity: 1, unitPrice: 800 }, { description: "Impressões 15x21cm x10 (opcional)", quantity: 1, unitPrice: 250 }] },
   event: { title: "Fatura — Evento / Show", items: [{ description: "Cobertura de evento (até 5h)", quantity: 1, unitPrice: 2800 }, { description: "200+ imagens tratadas", quantity: 1, unitPrice: 0 }, { description: "Seleção urgente 48h (50 imagens)", quantity: 1, unitPrice: 0 }, { description: "Galeria protegida por senha", quantity: 1, unitPrice: 0 }, { description: "Deslocamento >50km (R$ 2/km)", quantity: 1, unitPrice: 0 }] },
+  platform: { title: "Fatura — Plataforma de Venda", items: [{ description: "Cobertura fotográfica para plataforma", quantity: 1, unitPrice: 0 }, { description: "Tratamento e upload de imagens", quantity: 1, unitPrice: 0 }, { description: "Taxa fixa da plataforma", quantity: 1, unitPrice: 150 }, { description: "Comissão sobre vendas ({commissionRate}%)", quantity: 1, unitPrice: 0 }, { description: "Vendas estimadas: R$ {estimatedSales}", quantity: 1, unitPrice: 0 }] },
 };

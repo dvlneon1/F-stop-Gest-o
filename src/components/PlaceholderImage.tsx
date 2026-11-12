@@ -1,6 +1,6 @@
 "use client";
 
-import { Users2, User, Briefcase, Users, Music } from "lucide-react";
+import { Users2, User, Briefcase, Users, Music, Globe } from "lucide-react";
 import { CoverType } from "@/lib/constants";
 
 interface PlaceholderImageProps {
@@ -16,6 +16,7 @@ export function PlaceholderImage({ type, className = "", size = "full" }: Placeh
     commercial: <Briefcase className="w-12 h-12" strokeWidth={1.5} />,
     family: <Users className="w-12 h-12" strokeWidth={1.5} />,
     event: <Music className="w-12 h-12" strokeWidth={1.5} />,
+    platform: <Globe className="w-12 h-12" strokeWidth={1.5} />,
   };
 
   return (

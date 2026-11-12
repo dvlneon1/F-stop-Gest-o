@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectScrollUpButton, SelectScrollDownButton } from "@/components/ui/select";
 import { format } from "date-fns";
 import { t } from "@/lib/i18n";
 import { generateId } from "@/lib/utils";
-import { Client } from "@/lib/constants";
+import { Client, PREDEFINED_TAGS, getTagColor } from "@/lib/constants";
 
 interface ClientModalProps {
   open: boolean;
@@ -24,7 +25,7 @@ export function ClientModal({ open, onClose, onSubmit, client, lang }: ClientMod
     name: client?.name || "",
     email: client?.email || "",
     phone: client?.phone || "",
-    tags: client?.tags.join(", ") || "",
+    tags: client?.tags || [] as string[],
     notes: client?.notes || "",
     photoURL: client?.photoURL || "",
   });
@@ -37,13 +38,13 @@ export function ClientModal({ open, onClose, onSubmit, client, lang }: ClientMod
         name: client.name,
         email: client.email,
         phone: client.phone,
-        tags: client.tags.join(", "),
+        tags: client.tags,
         notes: client.notes,
         photoURL: client.photoURL || "",
       });
       setPhotoPreview(client.photoURL || null);
     } else {
-      setFormData({ name: "", email: "", phone: "", tags: "", notes: "", photoURL: "" });
+      setFormData({ name: "", email: "", phone: "", tags: [], notes: "", photoURL: "" });
       setPhotoPreview(null);
     }
   }, [client]);
@@ -68,6 +69,15 @@ export function ClientModal({ open, onClose, onSubmit, client, lang }: ClientMod
     return errors;
   };
 
+  const toggleTag = (tag: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.includes(tag)
+        ? prev.tags.filter(t => t !== tag)
+        : [...prev.tags, tag],
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors = validateClientForm(formData);
@@ -79,7 +89,7 @@ export function ClientModal({ open, onClose, onSubmit, client, lang }: ClientMod
     const ok = await onSubmit({
       ...formData,
       id: client?.id || generateId(),
-      tags: formData.tags.split(",").map(t => t.trim()).filter(Boolean),
+      tags: formData.tags,
       totalShoots: client?.totalShoots || 0,
       totalSpent: client?.totalSpent || 0,
       lastContact: format(new Date(), "yyyy-MM-dd"),
@@ -96,7 +106,7 @@ export function ClientModal({ open, onClose, onSubmit, client, lang }: ClientMod
         <form id="clientForm" onSubmit={handleSubmit} className="space-y-4 py-4 mb-8">
           <div className="space-y-2">
             <Label htmlFor="name" className="text-label">{t("form.client", lang)}</Label>
-            <Input id="name" placeholder={t("form.client", lang)} value={formData.name} onChange={(e) => { setFormData(prev => ({ ...prev, name: e.target.value })); if (formErrors.name) setFormErrors(prev => { const { name, ...rest } = prev; return rest; }); }} required />
+            <Input id="name" placeholder={t("form.clientPlaceholder", lang)} value={formData.name} onChange={(e) => { setFormData(prev => ({ ...prev, name: e.target.value })); if (formErrors.name) setFormErrors(prev => { const { name, ...rest } = prev; return rest; }); }} required />
             {formErrors.name && <span className="text-[0.7rem] text-destructive">{formErrors.name}</span>}
           </div>
           <div className="space-y-2">
@@ -109,34 +119,62 @@ export function ClientModal({ open, onClose, onSubmit, client, lang }: ClientMod
                   <span className="text-data text-muted text-xl">{formData.name ? formData.name.charAt(0).toUpperCase() : "?"}</span>
                 </div>
               )}
-              <input
-                id="photo"
-                type="file"
-                accept="image/*"
-                className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-500 file:text-amber-950 hover:file:bg-amber-400"
-                onChange={handlePhotoChange}
-              />
+              <label htmlFor="photo" className="w-full max-w-xs">
+                <input
+                  id="photo"
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={handlePhotoChange}
+                />
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-amber-950 bg-amber-500 hover:bg-amber-400 rounded-full transition-colors border-0"
+                >
+                  <span>{photoPreview ? t("clients.changePhoto", lang) : t("clients.uploadPhoto", lang)}</span>
+                </button>
+              </label>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-label">{t("clients.email", lang)}</Label>
-              <Input id="email" type="email" placeholder="email@exemplo.com" value={formData.email} onChange={(e) => { setFormData(prev => ({ ...prev, email: e.target.value })); if (formErrors.email) setFormErrors(prev => { const { email, ...rest } = prev; return rest; }); }} />
+              <Input id="email" type="email" placeholder={t("clients.emailPlaceholder", lang)} value={formData.email} onChange={(e) => { setFormData(prev => ({ ...prev, email: e.target.value })); if (formErrors.email) setFormErrors(prev => { const { email, ...rest } = prev; return rest; }); }} />
               {formErrors.email && <span className="text-[0.7rem] text-destructive">{formErrors.email}</span>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone" className="text-label">{t("clients.phone", lang)}</Label>
-              <Input id="phone" type="tel" placeholder="(11) 99999-9999" value={formData.phone} onChange={(e) => { setFormData(prev => ({ ...prev, phone: e.target.value })); if (formErrors.phone) setFormErrors(prev => { const { phone, ...rest } = prev; return rest; }); }} />
+              <Input id="phone" type="tel" placeholder={t("clients.phonePlaceholder", lang)} value={formData.phone} onChange={(e) => { setFormData(prev => ({ ...prev, phone: e.target.value })); if (formErrors.phone) setFormErrors(prev => { const { phone, ...rest } = prev; return rest; }); }} />
               {formErrors.phone && <span className="text-[0.7rem] text-destructive">{formErrors.phone}</span>}
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="tags" className="text-label">{t("clients.tags", lang)}</Label>
-            <Input id="tags" placeholder={t("clients.tags", lang)} value={formData.tags} onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))} />
+            <Select
+              multiple
+              value={formData.tags}
+              onValueChange={(tags: string[]) => setFormData(prev => ({ ...prev, tags }))}
+            >
+              <SelectTrigger className="w-full" id="tags">
+                <SelectValue placeholder={t("clients.selectTags", lang)} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectScrollUpButton>↑</SelectScrollUpButton>
+                <SelectScrollDownButton>↓</SelectScrollDownButton>
+                {PREDEFINED_TAGS.map(tag => (
+                  <SelectItem key={tag} value={tag}>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: getTagColor(tag) }} />
+                      <span>{tag}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="notes" className="text-label">{t("form.notes", lang)}</Label>
-            <Textarea id="notes" placeholder={t("form.notes", lang)} value={formData.notes} onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))} rows={3} />
+            <Textarea id="notes" placeholder={t("form.notesPlaceholder", lang)} value={formData.notes} onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))} rows={3} />
           </div>
         </form>
         <DialogFooter className="gap-2">

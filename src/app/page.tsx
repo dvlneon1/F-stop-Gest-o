@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import LoginAuth from "@/components/LoginAuth";
@@ -12,7 +13,6 @@ import { Toaster } from "@/components/ui/toast";
 // Extracted components
 import { ShootCard } from "@/components/ShootCard";
 import { Panel } from "@/components/Panel";
-import { TabBar } from "@/components/TabBar";
 import { EmptyState } from "@/components/EmptyState";
 import { NewShootModal } from "@/components/NewShootModal";
 import { ClientModal } from "@/components/ClientModal";
@@ -27,6 +27,7 @@ import { InsightsView } from "@/components/InsightsView";
 import { UserView } from "@/components/UserView";
 import { SettingsView } from "@/components/SettingsView";
 import { ClientsView } from "@/components/ClientsView";
+import { BillingView } from "@/components/BillingView";
 import { ProfileEditModal } from "@/components/ProfileEditModal";
 import { WelcomeTour } from "@/components/WelcomeTour";
 import { GrossRevenueModal } from "@/components/GrossRevenueModal";
@@ -48,7 +49,13 @@ import {
   Camera,
   RefreshCw,
   MapPin,
-  FileText,
+  Menu,
+  Home,
+  Globe,
+  Users,
+  Calendar as CalendarIcon,
+  BarChart3,
+  Trash2,
 } from "lucide-react";
 
 import { format, parseISO } from "date-fns";
@@ -107,11 +114,12 @@ function AppContent() {
   const [financialModal, setFinancialModal] = useState<null | "gross" | "net" | "expenses">(null);
   const [newExpenseOpen, setNewExpenseOpen] = useState(false);
   const [expenseHistoryOpen, setExpenseHistoryOpen] = useState(false);
-  const [currentTab, setCurrentTab] = useState("today");
+  const [currentTab, setCurrentTab] = useState<"today" | "archive" | "clients" | "calendar" | "insights" | "user" | "settings" | "platform" | "billing">("today");
   const [panelShoot, setPanelShoot] = useState<Shoot | null>(null);
   const [panelClient, setPanelClient] = useState<Client | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [newShootOpen, setNewShootOpen] = useState(false);
+  const [newShootDefaultMode, setNewShootDefaultMode] = useState<"client" | "platform">("client");
   const [editingShoot, setEditingShoot] = useState<Shoot | null>(null);
   const [clientModalOpen, setClientModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -130,14 +138,16 @@ function AppContent() {
   const [showCalendarSheet, setShowCalendarSheet] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ type: "shoot" | "client"; id: string } | null>(null);
+  const [clientDeleteOptionsOpen, setClientDeleteOptionsOpen] = useState(false);
+  const [pendingClientDelete, setPendingClientDelete] = useState<{ id: string; clientName: string; shootsCount: number } | null>(null);
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
   const [welcomeTourOpen, setWelcomeTourOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [firestoreReady, setFirestoreReady] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" && navigator.onLine);
-  const [legalInfo, setLegalInfo] = useState<null | "privacy" | "terms">(null);
 
   const lang = settings.lang;
   const tLang = useCallback((key: string) => t(key, lang), [lang]);
@@ -217,14 +227,14 @@ function AppContent() {
       if (data) {
         setUserProfileLocal(data);
       } else {
-        // New user - start with completely empty profile
+        // New user - start with EMPTY profile, let them fill it in
         const defaultProfile: UserProfileData = {
           name: "",
-          email: "",
+          email: authFirebaseUser.email || "",
           phone: "",
           cpf: "",
           address: "",
-          photoURL: undefined,
+          photoURL: authFirebaseUser.photoURL || undefined,
         };
         setUserProfileLocal(defaultProfile);
         // DON'T auto-save to Firestore - wait for user to edit and save
@@ -234,12 +244,11 @@ function AppContent() {
     const unsubSettings = subscribeSettings(userId, (data) => {
       if (data) setSettingsLocal(data);
       else {
-        // New user - start with default settings locally, don't auto-save to Firestore
         const defaultSettings: SettingsData = {
           lang: "pt", theme: "system", lastSync: null, sheetsApiKey: "", sheetsSpreadsheetId: "",
         };
         setSettingsLocal(defaultSettings);
-        // Don't auto-save - wait for user to change something and save manually
+        saveSettings(userId, defaultSettings);
       }
     });
 
@@ -711,8 +720,13 @@ function AppContent() {
   };
 
   const handleDeleteClient = (client: Client) => {
-    setPendingDelete({ type: "client", id: client.id });
-    setDeleteConfirmOpen(true);
+    const clientShoots = shoots.filter(s => s.client === client.name);
+    setPendingClientDelete({
+      id: client.id,
+      clientName: client.name,
+      shootsCount: clientShoots.length,
+    });
+    setClientDeleteOptionsOpen(true);
   };
 
   const confirmDelete = async () => {
@@ -769,6 +783,66 @@ function AppContent() {
     }
   };
 
+  const confirmClientDelete = async (deleteShootsToo: boolean) => {
+    if (!pendingClientDelete) return;
+    try {
+      // Delete the client
+      setPendingClientDeletes(prev => {
+        const next = new Set(prev);
+        next.add(pendingClientDelete.id);
+        return next;
+      });
+      setClients(prev => prev.filter(c => c.id !== pendingClientDelete.id));
+      if (authFirebaseUser) {
+        if (isOnline) {
+          await deleteClient(authFirebaseUser.uid, pendingClientDelete.id);
+        } else {
+          enqueueOperation(authFirebaseUser.uid, {
+            type: "delete",
+            collection: "clients",
+            data: { id: pendingClientDelete.id },
+            userId: authFirebaseUser.uid,
+          });
+          setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+        }
+      }
+
+      // Optionally delete associated shoots
+      if (deleteShootsToo) {
+        const clientShoots = shoots.filter(s => s.client === pendingClientDelete.clientName);
+        for (const shoot of clientShoots) {
+          setPendingShootDeletes(prev => {
+            const next = new Set(prev);
+            next.add(shoot.id);
+            return next;
+          });
+          setShoots(prev => prev.filter(s => s.id !== shoot.id));
+          if (authFirebaseUser) {
+            if (isOnline) {
+              await deleteShoot(authFirebaseUser.uid, shoot.id);
+            } else {
+              enqueueOperation(authFirebaseUser.uid, {
+                type: "delete",
+                collection: "shoots",
+                data: { id: shoot.id },
+                userId: authFirebaseUser.uid,
+              });
+              setPendingSyncCount(getPendingCount(authFirebaseUser.uid));
+            }
+          }
+        }
+      }
+
+      showToast(deleteShootsToo ? tLang("toast.clientDeleted") : tLang("toast.clientDeleted"), "success");
+    } catch (err) {
+      console.error("[confirmClientDelete] Falha ao excluir", pendingClientDelete.id, err);
+      showToast(tLang("toast.errorDeleting"), "error");
+    } finally {
+      setClientDeleteOptionsOpen(false);
+      setPendingClientDelete(null);
+    }
+  };
+
   const handleNewExpense = async (data: Partial<Expense>): Promise<boolean> => {
     const newExpense: Expense = {
       id: generateId(),
@@ -812,6 +886,8 @@ function AppContent() {
     filteredShoots = shoots.filter(s => s.date === todayStr || s.status === "today");
   } else if (currentTab === "archive") {
     filteredShoots = shoots.filter(s => s.date !== todayStr && s.status !== "today");
+  } else if (currentTab === "platform") {
+    filteredShoots = shoots.filter(s => s.type === "platform");
   }
 
   // Futuros shoots
@@ -844,6 +920,49 @@ function AppContent() {
             lang={lang}
           />
         )}
+        {/* Client delete options dialog - two choices */}
+        {pendingClientDelete && (
+          <Dialog open={clientDeleteOptionsOpen} onOpenChange={() => { setClientDeleteOptionsOpen(false); setPendingClientDelete(null); }}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-heading">{t("confirm.title", lang)}</DialogTitle>
+                <DialogDescription>
+                  {t("clients.confirmDeleteOptions", lang)
+                    .replace("{clientName}", pendingClientDelete.clientName)
+                    .replace("{shootsCount}", String(pendingClientDelete.shootsCount))}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 flex-col w-full">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="whitespace-nowrap w-full justify-start"
+                  onClick={() => confirmClientDelete(true)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {t("clients.deleteClientAndShoots", lang).replace("{count}", String(pendingClientDelete.shootsCount))}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="whitespace-nowrap w-full justify-start"
+                  onClick={() => confirmClientDelete(false)}
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  {t("clients.deleteClientOnly", lang)}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="whitespace-nowrap w-full justify-start"
+                  onClick={() => { setClientDeleteOptionsOpen(false); setPendingClientDelete(null); }}
+                >
+                  {t("modal.cancel", lang)}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
         <ConfirmationDialog
           open={logoutOpen}
           onClose={() => setLogoutOpen(false)}
@@ -869,41 +988,148 @@ function AppContent() {
             lang={lang}
           />
         )}
+
+        {/* Hamburger Menu Sheet - Available on all tabs */}
+        <Sheet open={hamburgerOpen} onOpenChange={setHamburgerOpen}>
+          <SheetContent side="left" className="w-72 max-w-[85vw] flex flex-col">
+            <SheetHeader className="p-4 pb-2">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-border/60 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {userProfile.photoURL ? (
+                    <img src={userProfile.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-data text-muted text-2xl">{userProfile.name ? userProfile.name.charAt(0).toUpperCase() : "?"}</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-heading text-wrap-balance truncate">{userProfile.name || t("user.profile", lang)}</p>
+                  <p className="text-label text-muted truncate">{userProfile.email || "—"}</p>
+                </div>
+              </div>
+            </SheetHeader>
+            <div className="flex-1 px-4 space-y-1 overflow-y-auto">
+              <button
+                onClick={() => { setEditingShoot(null); setNewShootDefaultMode(currentTab === "platform" ? "platform" : "client"); setNewShootOpen(true); setHamburgerOpen(false); }}
+                className="w-full flex items-center gap-3 px-3 py-3 text-left text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors"
+              >
+                <Plus className="w-5 h-5 shrink-0" />
+                <span>{t("modal.create", lang) || "Novo Shoot"}</span>
+              </button>
+              <button
+                onClick={() => { setEditingClient(null); setClientModalOpen(true); setHamburgerOpen(false); }}
+                className="w-full flex items-center gap-3 px-3 py-3 text-left text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors"
+              >
+                <User className="w-5 h-5 shrink-0" />
+                <span>{t("clients.new", lang) || "Novo Cliente"}</span>
+              </button>
+              <div className="border-t border-border/60 my-2" />
+              {(() => {
+                const isActive = (tab: string) => currentTab === tab;
+                return (
+                  <>
+                      {/* Top navigation items */}
+                      <button
+                        onClick={() => { setCurrentTab("today"); setHamburgerOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors ${isActive("today") ? "bg-amber-500/10 text-amber-500" : "text-data hover:bg-muted/50"}`}
+                      >
+                        <Home className="w-5 h-5 shrink-0" />
+                        <span>{t("tab.today", lang)}</span>
+                      </button>
+                      <button
+                        onClick={() => { setCurrentTab("clients"); setHamburgerOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors ${isActive("clients") ? "bg-amber-500/10 text-amber-500" : "text-data hover:bg-muted/50"}`}
+                      >
+                        <Users className="w-5 h-5 shrink-0" />
+                        <span>{t("tab.clients", lang)}</span>
+                      </button>
+                      <button
+                        onClick={() => { setCurrentTab("platform"); setHamburgerOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors ${isActive("platform") ? "bg-amber-500/10 text-amber-500" : "text-data hover:bg-muted/50"}`}
+                      >
+                        <Globe className="w-5 h-5 shrink-0" />
+                        <span>{t("tab.platform", lang)}</span>
+                      </button>
+                      <button
+                        onClick={() => { setCurrentTab("calendar"); setHamburgerOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors ${isActive("calendar") ? "bg-amber-500/10 text-amber-500" : "text-data hover:bg-muted/50"}`}
+                      >
+                        <CalendarIcon className="w-5 h-5 shrink-0" />
+                        <span>{t("tab.calendar", lang)}</span>
+                      </button>
+                      <button
+                        onClick={() => { setCurrentTab("insights"); setHamburgerOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors ${isActive("insights") ? "bg-amber-500/10 text-amber-500" : "text-data hover:bg-muted/50"}`}
+                      >
+                        <BarChart3 className="w-5 h-5 shrink-0" />
+                        <span>{t("tab.insights", lang)}</span>
+                      </button>
+                      <button
+                        onClick={() => { setCurrentTab("billing"); setHamburgerOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors ${isActive("billing") ? "bg-amber-500/10 text-amber-500" : "text-data hover:bg-muted/50"}`}
+                      >
+                        <DollarSign className="w-5 h-5 shrink-0" />
+                        <span>{t("billing.title", lang)}</span>
+                      </button>
+                    </>
+                );
+              })()}
+            </div>
+            {/* Bottom account section */}
+            <div className="px-4 pb-4 space-y-1 border-t border-border/60">
+              {(() => {
+                const isActive = (tab: string) => currentTab === tab;
+                return (
+                  <>
+                    <button
+                      onClick={() => { setCurrentTab("user"); setHamburgerOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors ${isActive("user") ? "bg-amber-500/10 text-amber-500" : "text-data hover:bg-muted/50"}`}
+                    >
+                      <User className="w-5 h-5 shrink-0" />
+                      <span>{t("user.profile", lang)}</span>
+                    </button>
+                    <button
+                      onClick={() => { setCurrentTab("settings"); setHamburgerOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors ${isActive("settings") ? "bg-amber-500/10 text-amber-500" : "text-data hover:bg-muted/50"}`}
+                    >
+                      <Settings className="w-5 h-5 shrink-0" />
+                      <span>{t("user.settings", lang)}</span>
+                    </button>
+                    <button
+                      onClick={() => { setLogoutOpen(true); setHamburgerOpen(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-3 text-left text-destructive hover:bg-muted/50 rounded-lg transition-colors"
+                    >
+                      <LogOut className="w-5 h-5 shrink-0" />
+                      <span>{t("user.logout", lang)}</span>
+                    </button>
+                  </>
+                );
+              })()}
+            </div>
+          </SheetContent>
+        </Sheet>
+
         <div
           className={`app min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden ${
             welcomeTourOpen ? "pointer-events-none select-none opacity-40" : ""
           }`}
         >
-          {currentTab === "today" && (
-            <div className="mt-6 flex justify-between items-start px-6 mb-8">
-              <div className="flex flex-col items-start gap-1">
-                <h1 className="text-display text-wrap-balance">{userProfile.name || t("session.today", lang)}</h1>
-                <span className="text-label">{todayDateStr}</span>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger>
-                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-card/90 border border-border/60 backdrop-blur-md transition-all duration-300 hover:bg-card/100" aria-label="Menu do usuário" tabIndex={0}>
-                    {userProfile.photoURL ? (
-                      <img src={userProfile.photoURL} alt="Profile" className="w-7 h-7 rounded-full object-cover" />
-                    ) : (
-                      <User className="w-7 h-7 text-foreground" />
-                    )}
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => setCurrentTab("user")} className="flex items-center justify-between px-1.5 py-0.5 gap-2"><User className="w-5 h-5 shrink-0" /><span className="truncate">Minha Conta</span></DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setCurrentTab("settings")} className="flex items-center justify-between px-1.5 py-0.5 gap-2"><Settings className="w-5 h-5 shrink-0" /><span className="truncate">Configurações</span></DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setCurrentTab("insights")} className="flex items-center justify-between px-1.5 py-0.5 gap-2"><DollarSign className="w-5 h-5 shrink-0" /><span className="truncate">Faturamento</span></DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setHideFinancialValues(!hideFinancialValues)} className={`flex items-center justify-between px-1.5 py-0.5 gap-2 ${hideFinancialValues ? "text-amber-500" : ""}`}><Eye className="w-5 h-5 shrink-0" /><span className="truncate">{hideFinancialValues ? t("user.showFinancial", lang) : t("user.hideFinancial", lang)}</span></DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setLegalInfo("privacy")} className="flex items-center justify-between px-1.5 py-0.5 gap-2"><FileText className="w-5 h-5 shrink-0" /><span className="truncate">{tLang("user.privacyPolicy")}</span></DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLegalInfo("terms")} className="flex items-center justify-between px-1.5 py-0.5 gap-2"><FileText className="w-5 h-5 shrink-0" /><span className="truncate">{tLang("user.termsOfService")}</span></DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="flex items-center justify-between px-1.5 py-0.5 gap-2 text-destructive" onClick={() => { setLogoutOpen(true); }}><LogOut className="w-5 h-5 shrink-0" /><span className="truncate">Sair</span></DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+          {/* Top bar with hamburger button and page title - shown on all tabs */}
+          <div className="mt-6 flex items-center justify-between px-6 mb-8">
+            <button
+              onClick={() => setHamburgerOpen(true)}
+              className="flex items-center justify-center w-12 h-12 rounded-full bg-card/90 border border-border/60 backdrop-blur-md transition-all duration-300 hover:bg-card/100"
+              aria-label={t("menu.open", lang)}
+            >
+              <Menu className="w-7 h-7 text-amber-500" />
+            </button>
+            <div className="flex-1 flex flex-col items-center gap-1 mx-4">
+              <h1 className="text-display text-wrap-balance text-center">
+                {currentTab === "today" ? (userProfile.name || t("session.today", lang)) : currentTab === "platform" ? t("tab.platform", lang) : currentTab === "archive" ? t("tab.archive", lang) : currentTab === "clients" ? t("tab.clients", lang) : currentTab === "calendar" ? t("tab.calendar", lang) : currentTab === "insights" ? t("tab.insights", lang) : currentTab === "billing" ? t("billing.title", lang) : currentTab === "user" ? t("user.profile", lang) : currentTab === "settings" ? t("user.settings", lang) : ""}
+              </h1>
+              {currentTab === "today" && <span className="text-label">{todayDateStr}</span>}
             </div>
-          )}
+            <div className="w-12" />
+          </div>
 
           {syncStatus === "offline" && (
             <div className="fixed top-4 left-4 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-popover/60 border border-border/60 backdrop-blur-md text-[0.75rem] text-muted-foreground shadow-sm">
@@ -932,7 +1158,7 @@ function AppContent() {
                     title={tLang("empty.title")}
                     text={tLang("empty.text")}
                     ctaLabel={tLang("empty.cta")}
-                    onCtaClick={() => { setEditingShoot(null); setNewShootOpen(true); }}
+                    onCtaClick={() => { setEditingShoot(null); setNewShootDefaultMode("client"); setNewShootOpen(true); }}
                   />
                 ) : (
                   <>
@@ -1018,7 +1244,26 @@ function AppContent() {
                     title={tLang("empty.title")}
                     text={tLang("empty.text")}
                     ctaLabel={tLang("empty.cta")}
-                    onCtaClick={() => { setEditingShoot(null); setNewShootOpen(true); }}
+                    onCtaClick={() => { setEditingShoot(null); setNewShootDefaultMode("client"); setNewShootOpen(true); }}
+                    className="col-span-full"
+                  />
+                ) : (
+                  filteredShoots.map(shoot => (
+                    <div key={shoot.id} role="listitem" className={shoot.status === "today" ? "grid__item--tall" : ""}>
+                      <ShootCard shoot={shoot} onClick={() => handleShootClick(shoot)} lang={lang} isToday={shoot.status === "today"} todayStr={todayStr} />
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : currentTab === "platform" ? (
+              <div className="grid grid-masonry-2" id="shootGrid" role="list" aria-label="Plataformas">
+                {filteredShoots.length === 0 ? (
+                  <EmptyState
+                    icon={Camera}
+                    title={tLang("empty.title")}
+                    text={tLang("empty.text")}
+                    ctaLabel={tLang("empty.cta")}
+                    onCtaClick={() => { setEditingShoot(null); setNewShootDefaultMode("platform"); setNewShootOpen(true); }}
                     className="col-span-full"
                   />
                 ) : (
@@ -1035,7 +1280,7 @@ function AppContent() {
                 shoots={shoots}
                 lang={lang}
                 hideFinancialValues={hideFinancialValues}
-                onClientClick={(client) => { setEditingClient(client); setClientModalOpen(true); }}
+                onClientClick={(client) => { setPanelClient(client); setPanelOpen(true); }}
                 onNewClient={() => { setEditingClient(null); setClientModalOpen(true); }}
                 onEditClient={(client) => { setEditingClient(client); setClientModalOpen(true); }}
                 onDeleteClient={handleDeleteClient}
@@ -1048,6 +1293,18 @@ function AppContent() {
               />
             ) : currentTab === "insights" ? (
               <InsightsView shoots={shoots} clients={clients} lang={lang} hideFinancialValues={hideFinancialValues} />
+            ) : currentTab === "billing" ? (
+              <BillingView
+                shoots={shoots}
+                clients={clients}
+                lang={lang}
+                hideFinancialValues={hideFinancialValues}
+                onViewInvoice={(shoot) => { setPanelShoot(shoot); setPanelOpen(true); setInvoiceModalOpen(true); }}
+                onEditInvoice={(shoot) => { setPanelShoot(shoot); setPanelOpen(true); setInvoiceModalOpen(true); }}
+                onSendInvoice={(shoot) => { setPanelShoot(shoot); showToast(tLang("invoice.sent"), "success"); }}
+                onDownloadInvoice={(shoot) => { showToast(tLang("invoice.download"), "success"); }}
+                onDeleteInvoice={(shoot) => { setPendingDelete({ type: "shoot", id: shoot.id }); setDeleteConfirmOpen(true); }}
+              />
             ) : currentTab === "settings" ? (
               <SettingsView
                 settings={settings}
@@ -1081,7 +1338,7 @@ function AppContent() {
                 onEditProfile={() => setProfileEditOpen(true)}
                 profileEditOpen={profileEditOpen}
                 setProfileEditOpen={setProfileEditOpen}
-                onSaveProfile={(data) => new Promise(resolve => setUserProfile(data).then(() => resolve(true)))}
+                onSaveProfile={(data) => setUserProfile(data)}
               />
             ) : null}
           </main>
@@ -1186,34 +1443,6 @@ function AppContent() {
             />
           )}
 
-          {/* Tab Bar */}
-          <TabBar
-            currentTab={currentTab}
-            onTabChange={setCurrentTab}
-            lang={lang}
-            showFAB={isMobile && shoots.length > 0 && (currentTab === "today" || currentTab === "archive" || currentTab === "clients")}
-            onFABClick={() => { setEditingShoot(null); setEditingClient(null); setNewShootOpen(true); }}
-          />
-
-          {/* FAB for Desktop - só aparece se houver shoots */}
-          {!isMobile && shoots.length > 0 && (
-            <div className="fixed bottom-10 right-10 z-40">
-              <DropdownMenu>
-                <DropdownMenuTrigger>
-                  <Button className="w-20 h-20 rounded-full bg-amber-500 text-amber-950 shadow-2xl hover:bg-amber-400 transition-colors" aria-label={tLang("menu.create")}>
-                    <Plus className="w-8 h-8" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => { setEditingShoot(null); setNewShootOpen(true); }} className="flex items-center gap-2"><Camera className="w-4 h-4" />{tLang("add.shoot")}</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { setEditingClient(null); setClientModalOpen(true); }} className="flex items-center gap-2"><User className="w-4 h-4" />{tLang("add.client")}</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setCurrentTab("settings")} className="flex items-center gap-2"><Settings className="w-4 h-4" />{tLang("menu.settings")}</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-
           {/* Calendar Day Sheet */}
           {showCalendarSheet && selectedCalendarDate && (
             <Sheet open={showCalendarSheet} onOpenChange={handleCalendarSheetClose}>
@@ -1252,6 +1481,7 @@ function AppContent() {
             clients={clients}
             lang={lang}
             editingShoot={editingShoot}
+            defaultMode={newShootDefaultMode}
           />
 
           {/* Client Modal */}
@@ -1264,32 +1494,6 @@ function AppContent() {
           />
 
         </div>
-        {/* Legal info dialog */}
-        {legalInfo && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setLegalInfo(null)}>
-            <div className="bg-card/95 border border-border/60 rounded-2xl p-6 w-full max-w-md shadow-2xl m-4" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-heading mb-4 text-wrap-balance">
-                {legalInfo === "privacy" ? tLang("user.privacyPolicy") : tLang("user.termsOfService")}
-              </h2>
-              <div className="text-body text-muted/80 space-y-3 max-h-[60vh] overflow-y-auto">
-                {legalInfo === "privacy" ? (
-                  <>
-                    <p>{t("privacy.text", lang) || "Seus dados pessoais e de negócios são armazenados exclusivamente no Firebase, vinculados ao seu usuário autenticado. O F-Stop Gestão não compartilha suas informações com terceiros."}</p>
-                    <p>Você pode exportar ou excluir todos os seus dados a qualquer momento em Configurações.</p>
-                  </>
-                ) : (
-                  <>
-                    <p>{t("terms.text", lang) || "Ao utilizar o F-Stop Gestão, você concorda com estes termos de uso. O aplicativo é destinado ao gerenciamento de shoots e clientes de fotografia. Você é responsável pelos dados que insere."}</p>
-                    <p>O uso do serviço é por sua conta e risco. O F-Stop Gestão não se responsabiliza por perda de dados decorrente de falhas externas.</p>
-                  </>
-                )}
-              </div>
-              <div className="mt-6 flex justify-end">
-                <Button onClick={() => setLegalInfo(null)} className="whitespace-nowrap">{t("modal.close", lang)}</Button>
-              </div>
-            </div>
-          </div>
-        )}
         {/* Toasts - fora da div principal para não ficar por baixo de menus/dropdowns */}
         <Toaster>
           {toasts.map(toast => (
@@ -1301,3 +1505,4 @@ function AppContent() {
     </>
   );
 }
+

@@ -44,8 +44,6 @@ export function CalendarView({ shoots, lang, onDateClick }: CalendarViewProps) {
 
   return (
     <div className="calendar-view page-padding space-y-6 max-w-xl mx-auto">
-      <h1 className="mb-2 text-display text-wrap-balance">{t("session.calendar", lang)}</h1>
-
       <header className="calendar-header flex items-center justify-between px-4">
         <Button variant="ghost" size="sm" onClick={() => {
           if (isMonthView) setCurrentDate(subMonths(currentDate, 1));
